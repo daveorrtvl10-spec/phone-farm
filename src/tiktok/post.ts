@@ -244,7 +244,11 @@ function identifyScreen(words: OcrWord[]): PostScreen {
     if (has(words, /^autocut$/i)) return 'preview';             // single-photo full-screen preview
     // The camera also shows "Add sound"; its mode strip (CAMERA / PHOTO / CREATE
     // / POST) is what distinguishes it from the editor ("Your Story" + Next).
-    if (has(words, /^(camera|create|post)$/) ) return 'camera';
+    // Camera labels, any of which may drop out of a given OCR pass on a live
+    // viewfinder: mode strip (CAMERA/CREATE/POST), duration chips (PHOTO/60s/15s),
+    // side tools (Timer/Ratio/Beauty). Checked before the editor because both
+    // show "Add sound".
+    if (has(words, /^(camera|create|post|photo|60s|15s)$/i) || has(words, /^(timer|ratio|beauty)$/i)) return 'camera';
     if (has(words, /^story$/i) || has(words, /^sound$/i)) return 'editor';
     return 'unknown';
 }
