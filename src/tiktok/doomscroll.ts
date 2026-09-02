@@ -170,12 +170,12 @@ const runStartedAt = Date.now();
 
 console.log(`Starting doomscroll: profile=${personality} requestedDurationMinutes=${durationMinutes} likeEnabled=${likeEnabled} saveEnabled=${saveEnabled}`);
 
+const remoteControl = new WdaRemoteControl({
+    deviceUdid: udid,
+    wdaUrl,
+    passcodeKeypadLayout: coordinates.passcodeKeypad,
+});
 try {
-    const remoteControl = new WdaRemoteControl({
-        deviceUdid: udid,
-        wdaUrl,
-        passcodeKeypadLayout: coordinates.passcodeKeypad,
-    });
     console.log('Checking device lock state');
     await remoteControl.unlock(udid);
 
@@ -347,6 +347,11 @@ try {
     console.log(`Finished doomscroll: videosViewed=${videosViewed} swipes=${swipes} likes=${likes} saves=${saves} follows=${follows} searches=${searches} elapsedMs=${elapsedMs} reason=${reason}`);
 } finally {
     if (driver) {
+        // A person puts the phone down when they stop scrolling; don't leave
+        // TikTok parked on the last video for minutes (seen live by Josh).
+        await remoteControl.performAction(udid, { type: 'home' }).catch((error: unknown) => {
+            console.log(`Could not press Home at session end: ${error instanceof Error ? error.message : String(error)}`);
+        });
         await driver.deleteSession();
     }
 }
