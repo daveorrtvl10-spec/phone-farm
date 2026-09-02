@@ -112,7 +112,7 @@ const UPLOAD_ATTEMPTS = 4;
 async function dismissOverlay(driver: Browser, remote: WdaRemoteControl, udid: string): Promise<boolean> {
     const { scale } = await remote.getScreenInfo(udid);
     const words = await screenWords(remote, udid);
-    const topStrip = 0.16 * 896 * scale;
+    const topStrip = 0.28 * 896 * scale;
     const close = words.find((word) => /^[xX×]$/.test(word.text.trim()) && word.y < topStrip);
     const label = words.find((word) => /^(skip|cancel|close|later|dismiss)$/i.test(word.text.trim()))
         ?? words.find((word) => /^not$/i.test(word.text.trim()) && words.some((n) => /^now$/i.test(n.text.trim()) && Math.abs(n.y - word.y) < word.height));

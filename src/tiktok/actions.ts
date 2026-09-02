@@ -71,7 +71,8 @@ async function dismissInterstitial(driver: Browser, words: OcrWord[], scale: num
     }
     // Bare "X" close glyph in the top strip (full-screen promos: "Create your
     // TikTok avatar" — seen live — offer nothing else).
-    const close = words.find((word) => /^[xX×]$/.test(word.text.trim()) && word.y < 0.16 * 896 * scale);
+    // Promo sheets put their X up to ~a quarter of the way down (avatar promo, seen live).
+    const close = words.find((word) => /^[xX×]$/.test(word.text.trim()) && word.y < 0.28 * 896 * scale);
     if (close) {
         const point = pointFromWord(close, scale);
         await tapCoordinate(driver, point.x, point.y, 'dismiss "X"');
@@ -186,7 +187,13 @@ export async function switchTikTokAccount(
             console.log(`Already on TikTok account ${targetHandle}`);
             return;
         }
-        if (!opened) await dismissInterstitial(driver, switcherWords, scale);
+        if (!opened && !(await dismissInterstitial(driver, switcherWords, scale))) {
+            // Header tooltips ("Whisper, whisper", "What's up?" — seen live)
+            // sit on the switcher trigger and swallow the tap. A tap on the
+            // empty profile body dismisses them; then give it a beat.
+            await tapCoordinate(driver, 300, 600, 'profile body (clear tooltip)');
+            await driver.pause(2500);
+        }
     }
     if (!opened) {
         const screenshotPath = await saveFailureScreenshot(remote, udid, 'switcher-unopened');
