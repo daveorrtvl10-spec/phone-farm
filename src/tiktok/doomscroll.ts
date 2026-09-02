@@ -25,7 +25,10 @@ function positiveInteger(name: string, fallback: number): number {
 }
 
 function boundedInteger(name: string, fallback: number, min: number, max: number): number {
-    const value = positiveInteger(name, fallback);
+    // min may be 0 (seeding budgets default to zero) — don't route through positiveInteger.
+    const rawValue = process.env[name] ?? String(fallback);
+    const value = Number.parseInt(rawValue, 10);
+    if (!Number.isSafeInteger(value)) throw new Error(`${name} must be an integer; received ${rawValue}`);
     if (value < min || value > max) {
         throw new Error(`${name} must be between ${min} and ${max}; received ${value}`);
     }
