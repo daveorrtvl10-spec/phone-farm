@@ -77,3 +77,18 @@ run logs without Josh.
 3. Follows in doomscroll; per-account warm-up scheduler and post gate.
 4. Wire UGC briefs into the post endpoint.
 5. Buy SE units; second profile calibration.
+
+## Scaling plan (discussed 2026-09-02)
+- Unit of scale = the phone. Accounts on one phone are serialized by the playbook's
+  health bar (2nd account only after 6+ posts over 500 views); phones run in parallel.
+  Ceiling ~3 accounts/phone. Five phones ≈ 5 → 10 → 15 accounts over ~6 weeks.
+- Human steps per account (~20 min): fresh Apple ID on the phone, sign-up, one-time
+  photo + bio. Everything else is automated or Claude-driven.
+- Real cost line is content: 15 accounts × 1–2 posts/day = 20–30 slideshows/day.
+- **IP/data:** many phones on one home IP get linked. Decide per-phone IPs (SIM or
+  mobile proxy) before phone #3.
+- **No-laptop host:** WDA needs Xcode only to sign/build (yearly on the paid team).
+  Launching it over USB works from Linux via go-ios; Appium/scheduler/dashboard are
+  plain Node. Target: headless Linux box or Mac mini + powered USB hub, same tunnel.
+- Build order: prove the two live accounts → phase-aware scheduler + account roster +
+  results reader → migrate host to a headless box before phone #3 → per-phone IPs.
