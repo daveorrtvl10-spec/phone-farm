@@ -7,6 +7,7 @@ export interface TikTokCoordinates {
         picker: { circleX: number; columnStep: number; firstY: number; trayY: number; rowStep: number; cellX: number; cellStep: number; cellY: number };
         pickerNext: Point; editorNext: Point; caption: Point; keyboardBack: Point; draft: Point; finish: Point;
         like: Point; save: Point; swipe: { x: number; startY: number; endY: number; durationMs: number };
+        search?: { icon: Point; submit: Point; firstResult: Point; back: Point };
     };
 }
 
@@ -22,6 +23,7 @@ export const DEVICE_COORDINATES = {
             pickerNext: { x: 340, y: 838 }, editorNext: { x: 299, y: 830 }, caption: { x: 200, y: 280 },
             keyboardBack: { x: 28, y: 62 }, draft: { x: 111, y: 830 }, finish: { x: 309, y: 826 },
             like: { x: 382, y: 470 }, save: { x: 383, y: 602 }, swipe: { x: 207, startY: 700, endY: 250, durationMs: 450 },
+            search: { icon: { x: 386, y: 66 }, submit: { x: 361, y: 793 }, firstResult: { x: 104, y: 300 }, back: { x: 22, y: 66 } },
         },
     },
     iphone8: {

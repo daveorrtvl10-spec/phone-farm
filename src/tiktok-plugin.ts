@@ -7,6 +7,7 @@ import { pipeline } from 'node:stream/promises';
 
 import type { PhoneFarmPlugin, TaskDefinition, TaskExecutionContext } from './plugin.js';
 import { assistDirectory, readAssist, resolveAssist } from './tiktok/assist.js';
+import { describeRemaining, warmupMap, warmupRemainingMs, WARMUP_HOURS_DEFAULT } from './tiktok/warmup.js';
 import { readdir } from 'node:fs/promises';
 import type { JsonObject, JsonValue, ScheduleTiming } from './types.js';
 
@@ -22,6 +23,10 @@ type DoomscrollPayload = JsonObject & {
     likeEnabled: boolean;
     saveEnabled: boolean;
     account?: string;
+    /** Warm-up seeding (docs/WARMUP.md). */
+    followBudget?: number;
+    seedTerms?: string[];
+    searchCount?: number;
 };
 
 // TikTok accepts up to 35 slideshow images, but the picker taps are grid
@@ -73,12 +78,21 @@ function createDoomscrollTask(configuration: TikTokPluginConfiguration): TaskDef
                 throw new Error('Engagement settings must be boolean');
             }
             const account = optionalString(input.account, 'account');
+            const followBudget = input.followBudget === undefined ? undefined : Number(input.followBudget);
+            if (followBudget !== undefined && (!Number.isInteger(followBudget) || followBudget < 0 || followBudget > 20)) throw new Error('followBudget must be 0–20');
+            const searchCount = input.searchCount === undefined ? undefined : Number(input.searchCount);
+            if (searchCount !== undefined && (!Number.isInteger(searchCount) || searchCount < 0 || searchCount > 5)) throw new Error('searchCount must be 0–5');
+            const seedTerms = input.seedTerms === undefined ? undefined
+                : (Array.isArray(input.seedTerms) ? input.seedTerms : [input.seedTerms]).map((term) => String(term).trim()).filter(Boolean).slice(0, 12);
             return {
                 durationMinutes, personality, likeEnabled: input.likeEnabled, saveEnabled: input.saveEnabled,
                 ...(account ? { account } : {}),
+                ...(followBudget ? { followBudget } : {}),
+                ...(searchCount ? { searchCount } : {}),
+                ...(seedTerms?.length ? { seedTerms } : {}),
             };
         },
-        summarize: (payload) => `Doomscroll · ${payload.personality} · ${payload.durationMinutes} min`,
+        summarize: (payload) => `Doomscroll · ${payload.personality} · ${payload.durationMinutes} min${payload.followBudget || payload.searchCount ? ' · seeding' : ''}`,
         estimateDurationMs: (payload) => payload.durationMinutes * 60_000,
         retryPolicy: () => ({ retryLimit: 2, retryDelaySeconds: 60, retryBackoff: true }),
         supportsStop: () => true,
@@ -92,6 +106,10 @@ function createDoomscrollTask(configuration: TikTokPluginConfiguration): TaskDef
                 DOOMSCROLL_LIKE_ENABLED: String(payload.likeEnabled),
                 DOOMSCROLL_SAVE_ENABLED: String(payload.saveEnabled),
                 ...(payload.account ? { TIKTOK_SWITCH_ACCOUNT: payload.account } : {}),
+                ...(payload.followBudget ? { DOOMSCROLL_FOLLOW_BUDGET: String(payload.followBudget) } : {}),
+                ...(payload.searchCount ? { DOOMSCROLL_SEARCH_COUNT: String(payload.searchCount) } : {}),
+                ...(payload.seedTerms?.length ? { DOOMSCROLL_SEED_TERMS: payload.seedTerms.join(',') } : {}),
+                ...(process.env.DOOMSCROLL_SEARCH_RESULT_Y ? { DOOMSCROLL_SEARCH_RESULT_Y: process.env.DOOMSCROLL_SEARCH_RESULT_Y } : {}),
             },
         }),
     };
@@ -138,6 +156,8 @@ function createPostTask(configuration: TikTokPluginConfiguration): TaskDefinitio
         retryPolicy: () => ({ retryLimit: 0, retryDelaySeconds: 0, retryBackoff: false }),
         supportsStop: () => false,
         async execute(context: TaskExecutionContext, payload) {
+            const remaining = warmupRemainingMs(context.devicePluginData, payload.account);
+            if (remaining > 0) throw new Error(`${payload.account} is warming up — posting opens in ${describeRemaining(remaining)}; refusing to post`);
             const byId = new Map(context.assets.map((asset) => [asset.id, asset]));
             const files = payload.media.map((media) => {
                 const asset = byId.get(media.assetId);
@@ -187,6 +207,29 @@ export function createTikTokPlugin(configuration: TikTokPluginConfiguration = {}
                 return resolved;
             });
             const deviceData = async (udid: string) => (await context.loadDevices()).find((device) => device.udid === udid);
+            // Warm-up clock per account: while it runs, posting for that handle is refused.
+            context.app.get<{ Params: { udid: string } }>('/api/devices/:udid/warmup', async (request, reply) => {
+                const device = await deviceData(request.params.udid);
+                if (!device) return reply.code(404).send({ error: 'Device is not registered' });
+                const map = warmupMap(device.pluginData['com.git-agni.tiktok']);
+                return { warmup: Object.fromEntries(Object.entries(map).map(([handle, entry]) => [handle, { ...entry, remaining: describeRemaining(warmupRemainingMs(device.pluginData['com.git-agni.tiktok'], handle)) }])) };
+            });
+            context.app.post<{ Params: { udid: string }; Body: { account?: string; hours?: number; startedAt?: string } }>('/api/devices/:udid/warmup', async (request, reply) => {
+                const account = request.body?.account?.trim();
+                if (!account) return reply.code(400).send({ error: 'account is required' });
+                const handle = (account.startsWith('@') ? account : `@${account}`).toLowerCase();
+                const entry = { startedAt: request.body.startedAt ?? new Date().toISOString(), hours: request.body.hours ?? WARMUP_HOURS_DEFAULT };
+                const found = await context.mutateDevices((devices) => {
+                    const device = devices.find(({ udid }) => udid === request.params.udid);
+                    if (!device) return false;
+                    const current = device.pluginData['com.git-agni.tiktok'] ?? {};
+                    const warmup = { ...((current as { warmup?: JsonObject }).warmup ?? {}), [handle]: entry };
+                    device.pluginData = { ...device.pluginData, 'com.git-agni.tiktok': { ...current, warmup } };
+                    return true;
+                });
+                if (!found) return reply.code(404).send({ error: 'Device is not registered' });
+                return { account: handle, ...entry };
+            });
             context.app.patch<{ Params: { udid: string }; Body: { accounts?: string[] } }>('/api/devices/:udid/accounts', async (request, reply) => {
                 if (!Array.isArray(request.body.accounts)) return reply.code(400).send({ error: 'accounts must be an array' });
                 const accounts = [...new Set(request.body.accounts.map((value) => value.trim()).filter(Boolean)
@@ -224,6 +267,9 @@ export function createTikTokPlugin(configuration: TikTokPluginConfiguration = {}
                                     durationMinutes: Number(body.durationMinutes), personality: body.personality,
                                     likeEnabled: body.likeEnabled === 'on', saveEnabled: body.saveEnabled === 'on',
                                     ...(body.account?.trim() ? { account: body.account.trim() } : {}),
+                                    ...(body.followBudget ? { followBudget: Number(body.followBudget) } : {}),
+                                    ...(body.searchCount ? { searchCount: Number(body.searchCount) } : {}),
+                                    ...(body.seedTerms?.trim() ? { seedTerms: body.seedTerms.split(',').map((t) => t.trim()).filter(Boolean) } : {}),
                                 },
                             },
                             timing,
@@ -275,6 +321,8 @@ export function createTikTokPlugin(configuration: TikTokPluginConfiguration = {}
                     if (destination !== 'draft' && destination !== 'publish') throw new Error('Choose Draft or Post');
                     const account = fields.get('account')?.trim();
                     if (!account) throw new Error('Choose a TikTok account');
+                    const remaining = warmupRemainingMs(device.pluginData['com.git-agni.tiktok'], account);
+                    if (remaining > 0) throw new Error(`${account} is warming up — posting opens in ${describeRemaining(remaining)}`);
                     const timing = fields.has('timing') ? JSON.parse(fields.get('timing')!) as ScheduleTiming : { kind: 'now' } as const;
                     const stored = await context.scheduler.registerAssets(await Promise.all(files.map(async (file) => ({
                         relativePath: path.relative(dataRoot, file.path), originalName: file.name, mimeType: file.mimeType,

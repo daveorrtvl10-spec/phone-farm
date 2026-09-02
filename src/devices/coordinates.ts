@@ -42,6 +42,8 @@ export interface DeviceCoordinates {
         finish: Point;
         like: Point;
         save: Point;
+        /** Search seeding taps; optional until measured for a layout. */
+        search?: { icon: Point; submit: Point; firstResult: Point; back: Point };
         swipe: {
             x: number;
             startY: number;
@@ -103,6 +105,9 @@ export const DEVICE_COORDINATES = {
             like: { x: 382, y: 470 },
             save: { x: 383, y: 602 },
             swipe: { x: 207, startY: 700, endY: 250, durationMs: 450 },
+            // Measured 2026-09-02: search icon top-right of the For You header;
+            // keyboard Search key bottom-right; results grid first tile: TBD (x only).
+            search: { icon: { x: 386, y: 66 }, submit: { x: 361, y: 793 }, firstResult: { x: 104, y: 300 }, back: { x: 22, y: 66 } },
         },
     },
     iphone8: {

@@ -56,6 +56,13 @@ const durationMinutes = boundedInteger('DOOMSCROLL_DURATION_MINUTES', 5, 1, 180)
 const likeEnabled = booleanEnv('DOOMSCROLL_LIKE_ENABLED', true);
 const saveEnabled = booleanEnv('DOOMSCROLL_SAVE_ENABLED', true);
 const switchAccountName = process.env.TIKTOK_SWITCH_ACCOUNT?.trim() || undefined;
+// Warm-up seeding (see docs/WARMUP.md). Follows: tap the "+" under the creator
+// avatar after a video was watched all the way through, up to a budget.
+// Searches: run niche searches at spaced points in the session (needs the
+// results layout measured on device before it is enabled — see seedSearch).
+const followBudget = boundedInteger('DOOMSCROLL_FOLLOW_BUDGET', 0, 0, 20);
+const seedTerms = (process.env.DOOMSCROLL_SEED_TERMS ?? '').split(',').map((term) => term.trim()).filter(Boolean);
+const searchCount = boundedInteger('DOOMSCROLL_SEARCH_COUNT', 0, 0, 5);
 const registeredDevice = (await loadRegisteredDevices()).find((device) => device.udid === udid);
 const coordinates = resolveDeviceCoordinates(coordinateProfile(registeredDevice), registeredDevice?.coordinates);
 const tiktokCoordinates = coordinates.tiktok;
@@ -154,6 +161,8 @@ let videosViewed = 0;
 let swipes = 0;
 let likes = 0;
 let saves = 0;
+let follows = 0;
+let searches = 0;
 const runStartedAt = Date.now();
 
 console.log(`Starting doomscroll: profile=${personality} requestedDurationMinutes=${durationMinutes} likeEnabled=${likeEnabled} saveEnabled=${saveEnabled}`);
@@ -213,6 +222,47 @@ try {
     }
 
     const deadline = Date.now() + durationMinutes * 60_000;
+    const sessionStart = Date.now();
+    const seedOffset = Math.floor(Math.random() * Math.max(1, seedTerms.length));
+    let followedLast = false;
+
+    // Search seeding: search icon → type → keyboard Search → results. The
+    // results grid has NOT been measured on device yet, so this only opens the
+    // search, types, and returns to the feed; the watch-through of results is
+    // gated behind DOOMSCROLL_SEARCH_RESULT_Y (set once measured).
+    async function seedSearch(term: string): Promise<void> {
+        const search = tiktokCoordinates.search;
+        if (!search) { console.log('No search coordinates in profile; skipping seeding'); return; }
+        await tapCoordinate(driver!, search.icon.x, search.icon.y, 'Search icon');
+        await driver!.pause(2000);
+        const response = await fetch(`http://${process.env.APPIUM_HOST ?? '127.0.0.1'}:${process.env.APPIUM_PORT ?? '4725'}/session/${driver!.sessionId}/keys`, {
+            method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ value: [term] }),
+        });
+        if (!response.ok) throw new Error(`Appium could not type the search term: ${await response.text()}`);
+        await driver!.pause(800);
+        await tapCoordinate(driver!, search.submit.x, search.submit.y, 'keyboard Search');
+        await driver!.pause(3500);
+        console.log(`Seeded search "${term}"`);
+        const resultY = Number(process.env.DOOMSCROLL_SEARCH_RESULT_Y ?? 0);
+        if (resultY > 0) {
+            await tapCoordinate(driver!, search.firstResult.x, resultY, 'first result');
+            await driver!.pause(1500);
+            // Watch a handful of results like the feed, then come back.
+            for (let i = 0; i < 4 && !stopRequested && hasTimeRemaining(Date.now(), deadline); i += 1) {
+                await cancellableDelay(clampToDeadline(Date.now(), deadline, pickWatchDurationMs(profile) + 3000));
+                await driver!.performActions([{ type: 'pointer', id: 'finger', parameters: { pointerType: 'touch' }, actions: [
+                    { type: 'pointerMove', duration: 0, x: swipeX, y: swipeStartY }, { type: 'pointerDown', button: 0 },
+                    { type: 'pointerMove', duration: swipeDurationMs, x: swipeX, y: swipeEndY }, { type: 'pointerUp', button: 0 } ] }]);
+                await driver!.releaseActions();
+            }
+            await tapCoordinate(driver!, search.back.x, search.back.y, 'back from results');
+            await driver!.pause(1200);
+        }
+        await tapCoordinate(driver!, search.back.x, search.back.y, 'back to feed');
+        await driver!.pause(1500);
+        await tapCoordinate(driver!, homeTabX, homeTabY, 'Home tab');
+        await driver!.pause(1500);
+    }
 
     while (!stopRequested && hasTimeRemaining(Date.now(), deadline)) {
         await cancellableDelay(clampToDeadline(Date.now(), deadline, pickWatchDurationMs(profile)));
@@ -243,6 +293,31 @@ try {
         }
         if (stopRequested || !hasTimeRemaining(Date.now(), deadline)) break;
 
+        // A creator whose video was watched through is the natural follow. The
+        // "+" sits 69pt above the heart on this layout (measured 2026-09-02);
+        // never on the first three videos of a session, never twice in a row.
+        if (linger && follows < followBudget && videosViewed > 3 && Math.random() < 0.5 && !followedLast) {
+            await cancellableDelay(clampToDeadline(Date.now(), deadline, interactionPauseMs()));
+            if (stopRequested || !hasTimeRemaining(Date.now(), deadline)) break;
+            await tapCoordinate(driver, likeX, likeY - 69, 'Follow');
+            follows += 1;
+            followedLast = true;
+        } else {
+            followedLast = false;
+        }
+        if (stopRequested || !hasTimeRemaining(Date.now(), deadline)) break;
+
+        // Niche search seeding at spaced points in the session.
+        if (searches < Math.min(searchCount, seedTerms.length)) {
+            const due = Date.now() >= sessionStart + ((searches + 1) * (durationMinutes * 60_000)) / (Math.min(searchCount, seedTerms.length) + 1);
+            if (due) {
+                const term = seedTerms[(searches + seedOffset) % seedTerms.length]!;
+                await seedSearch(term);
+                searches += 1;
+            }
+        }
+        if (stopRequested || !hasTimeRemaining(Date.now(), deadline)) break;
+
         await cancellableDelay(clampToDeadline(Date.now(), deadline, interactionPauseMs()));
         if (stopRequested || !hasTimeRemaining(Date.now(), deadline)) break;
 
@@ -266,7 +341,7 @@ try {
 
     const elapsedMs = Date.now() - runStartedAt;
     const reason = stopRequested ? 'stopped' : 'completed';
-    console.log(`Finished doomscroll: videosViewed=${videosViewed} swipes=${swipes} likes=${likes} saves=${saves} elapsedMs=${elapsedMs} reason=${reason}`);
+    console.log(`Finished doomscroll: videosViewed=${videosViewed} swipes=${swipes} likes=${likes} saves=${saves} follows=${follows} searches=${searches} elapsedMs=${elapsedMs} reason=${reason}`);
 } finally {
     if (driver) {
         await driver.deleteSession();
