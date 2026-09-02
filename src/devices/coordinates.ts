@@ -79,8 +79,8 @@ export const DEVICE_COORDINATES = {
             create: { x: 205, y: 834 },
             upload: { x: 28, y: 830 }, // CAMERA-mode layout
             uploadAlt: { x: 330, y: 725 }, // POST-mode layout (thumbnail bottom-right, seen live)
-            selectMultiple: { x: 49, y: 834 },
-            useLayout: { x: 41, y: 701 },
+            selectMultiple: { x: 24, y: 836 }, // the checkbox circle itself: the red-pixel check samples here
+            useLayout: { x: 24, y: 704 },
             picker: {
                 // Measured from the live picker 2026-09-02: 3 cols of 138pt, grid
                 // starts directly under the Recents tabs, newest asset top-left.

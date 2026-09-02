@@ -69,6 +69,14 @@ async function dismissInterstitial(driver: Browser, words: OcrWord[], scale: num
         await tapCoordinate(driver, point.x, point.y, `dismiss "${twoWord.text} …"`);
         return true;
     }
+    // Bare "X" close glyph in the top strip (full-screen promos: "Create your
+    // TikTok avatar" — seen live — offer nothing else).
+    const close = words.find((word) => /^[xX×]$/.test(word.text.trim()) && word.y < 0.16 * 896 * scale);
+    if (close) {
+        const point = pointFromWord(close, scale);
+        await tapCoordinate(driver, point.x, point.y, 'dismiss "X"');
+        return true;
+    }
     for (const pattern of DISMISS_PATTERNS) {
         const match = words.find((word) => pattern.test(word.text.trim()));
         if (!match) continue;

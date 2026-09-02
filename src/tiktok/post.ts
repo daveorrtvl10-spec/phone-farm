@@ -90,14 +90,15 @@ async function openComposer(
     await driver.pause(2500);
 }
 
-// Springboard/Music etc. mean activateApp did not take (seen live right after
-// a terminateApp). Re-activate rather than tapping into whatever is showing.
-async function requireTikTokInFront(driver: Browser, remote: WdaRemoteControl, udid: string, bundleId: string): Promise<void> {
+// activateApp right after terminateApp can silently not take (seen live: the
+// phone stayed on Springboard, and the Profile-tab coordinate opened Apple
+// Music from the dock). Ask XCUITest which app is in front rather than
+// guessing from OCR — a full-screen TikTok promo has none of the tab words.
+async function requireTikTokInFront(driver: Browser, bundleId: string): Promise<void> {
     for (let attempt = 1; attempt <= 3; attempt += 1) {
-        const words = await screenWords(remote, udid);
-        const tiktokTabs = ['home', 'friends', 'inbox', 'profile'].filter((tab) => has(words, new RegExp(`^${tab}$`, 'i'))).length;
-        if (tiktokTabs >= 2 || identifyScreen(words) !== 'unknown') return;
-        console.log(`TikTok not in front (attempt ${attempt}); re-activating`);
+        const state = await driver.queryAppState(bundleId);
+        if (state === 4) return; // RUNNING_IN_FOREGROUND
+        console.log(`TikTok app state ${state} (attempt ${attempt}); re-activating`);
         await driver.activateApp(bundleId);
         await driver.pause(5000);
     }
@@ -105,6 +106,23 @@ async function requireTikTokInFront(driver: Browser, remote: WdaRemoteControl, u
 }
 
 const UPLOAD_ATTEMPTS = 4;
+
+// Close buttons render as a bare "X" glyph in the top strip of the screen;
+// Skip/Cancel/Close/Later/Not now are word buttons. One tap, best effort.
+async function dismissOverlay(driver: Browser, remote: WdaRemoteControl, udid: string): Promise<boolean> {
+    const { scale } = await remote.getScreenInfo(udid);
+    const words = await screenWords(remote, udid);
+    const topStrip = 0.16 * 896 * scale;
+    const close = words.find((word) => /^[xX×]$/.test(word.text.trim()) && word.y < topStrip);
+    const label = words.find((word) => /^(skip|cancel|close|later|dismiss)$/i.test(word.text.trim()))
+        ?? words.find((word) => /^not$/i.test(word.text.trim()) && words.some((n) => /^now$/i.test(n.text.trim()) && Math.abs(n.y - word.y) < word.height));
+    const target = close ?? label;
+    if (!target) return false;
+    const point = { x: Math.round((target.x + target.width / 2) / scale), y: Math.round((target.y + target.height / 2) / scale) };
+    await tapCoordinate(driver, point.x, point.y, `dismiss "${target.text}"`);
+    await driver.pause(1500);
+    return true;
+}
 
 // On a cold start the camera can still be initialising when the first Upload
 // tap lands (seen live: screen unchanged, still showing the mode strip). Read
@@ -115,9 +133,14 @@ async function openPicker(
     for (let attempt = 1; attempt <= UPLOAD_ATTEMPTS; attempt += 1) {
         const screen = identifyScreen(await screenWords(remote, udid));
         if (screen === 'picker') return;
-        if (screen !== 'camera' && attempt === 1) {
-            console.log(`Expected the camera after Create but saw ${screen}; waiting`);
-            await driver.pause(2500);
+        if (screen !== 'camera') {
+            // Not the camera: usually a promo or prompt over the feed/camera
+            // (avatar promo with only an X — seen live). Dismiss it and re-tap
+            // Create rather than tapping Upload into whatever this is.
+            console.log(`Expected the camera after Create but saw ${screen}; dismissing and re-tapping Create`);
+            await dismissOverlay(driver, remote, udid);
+            await tapCoordinate(driver, coordinates.create.x, coordinates.create.y, 'Create (retry)');
+            await driver.pause(3000);
             continue;
         }
         // TikTok's camera has two layouts (CAMERA-mode: thumbnail bottom-left;
@@ -381,7 +404,7 @@ for (let attempt = 1; attempt <= REACH_CAPTION_SCREEN_ATTEMPTS && !reachedCaptio
         await driver.pause(2500);
         await driver.activateApp(bundleId);
         await driver.pause(6000);
-        await requireTikTokInFront(driver, deviceRemote, manifest.device.udid, bundleId);
+        await requireTikTokInFront(driver, bundleId);
         if (switchAccountName) {
             console.log(`Switching to TikTok account "${switchAccountName}"`);
             await switchTikTokAccount(driver, deviceRemote, manifest.device.udid, switchAccountName, accountSwitchCoords);

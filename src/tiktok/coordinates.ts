@@ -16,8 +16,8 @@ export const DEVICE_COORDINATES = {
         passcodeKeypad: { columnX: [117, 207, 297], rowY: [290, 386, 482, 578] },
         tiktok: {
             profileTab: { x: 361, y: 839 }, homeTab: { x: 40, y: 841 }, accountSwitcher: { x: 102, y: 121 },
-            create: { x: 205, y: 834 }, upload: { x: 28, y: 830 }, uploadAlt: { x: 330, y: 725 }, selectMultiple: { x: 49, y: 834 },
-            useLayout: { x: 41, y: 701 },
+            create: { x: 205, y: 834 }, upload: { x: 28, y: 830 }, uploadAlt: { x: 330, y: 725 }, selectMultiple: { x: 24, y: 836 },
+            useLayout: { x: 24, y: 704 },
             picker: { circleX: 120, columnStep: 138, firstY: 153, trayY: 153, rowStep: 138, cellX: 69, cellStep: 138, cellY: 206, newestFirst: true },
             pickerNext: { x: 295, y: 845 }, editorNext: { x: 299, y: 830 }, caption: { x: 200, y: 280 },
             keyboardBack: { x: 28, y: 62 }, draft: { x: 111, y: 830 }, finish: { x: 309, y: 826 },
