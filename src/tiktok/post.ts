@@ -104,7 +104,7 @@ async function requireTikTokInFront(driver: Browser, remote: WdaRemoteControl, u
     throw new Error('TikTok did not come to the foreground after activateApp');
 }
 
-const UPLOAD_ATTEMPTS = 3;
+const UPLOAD_ATTEMPTS = 4;
 
 // On a cold start the camera can still be initialising when the first Upload
 // tap lands (seen live: screen unchanged, still showing the mode strip). Read
@@ -120,7 +120,10 @@ async function openPicker(
             await driver.pause(2500);
             continue;
         }
-        await tapCoordinate(driver, coordinates.upload.x, coordinates.upload.y, `Upload (retry ${attempt})`);
+        // TikTok's camera has two layouts (CAMERA-mode: thumbnail bottom-left;
+        // POST-mode: bottom-right). Alternate between the two known spots.
+        const target = attempt % 2 === 0 && coordinates.uploadAlt ? coordinates.uploadAlt : coordinates.upload;
+        await tapCoordinate(driver, target.x, target.y, `Upload (retry ${attempt}${target === coordinates.uploadAlt ? ', alt layout' : ''})`);
         await driver.pause(3500);
     }
     await requireScreen(remote, udid, 'picker', 'Opening the photo picker');

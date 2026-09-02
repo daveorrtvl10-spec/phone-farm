@@ -20,6 +20,8 @@ export interface DeviceCoordinates {
         accountSwitcher: Point;
         create: Point;
         upload: Point;
+        /** Second Upload-thumbnail position for the camera's other layout (POST mode), if the app has one. */
+        uploadAlt?: Point;
         selectMultiple: Point;
         useLayout: Point;
         picker: {
@@ -75,7 +77,8 @@ export const DEVICE_COORDINATES = {
             homeTab: { x: 40, y: 841 },
             accountSwitcher: { x: 102, y: 121 },
             create: { x: 205, y: 834 },
-            upload: { x: 28, y: 830 },
+            upload: { x: 28, y: 830 }, // CAMERA-mode layout
+            uploadAlt: { x: 330, y: 725 }, // POST-mode layout (thumbnail bottom-right, seen live)
             selectMultiple: { x: 49, y: 834 },
             useLayout: { x: 41, y: 701 },
             picker: {

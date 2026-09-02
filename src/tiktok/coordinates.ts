@@ -2,7 +2,7 @@ export interface Point { x: number; y: number }
 export interface TikTokCoordinates {
     passcodeKeypad: { columnX: [number, number, number]; rowY: [number, number, number, number] };
     tiktok: {
-        profileTab: Point; homeTab: Point; accountSwitcher: Point; create: Point; upload: Point;
+        profileTab: Point; homeTab: Point; accountSwitcher: Point; create: Point; upload: Point; uploadAlt?: Point;
         selectMultiple: Point; useLayout: Point;
         picker: { circleX: number; columnStep: number; firstY: number; trayY: number; rowStep: number; cellX: number; cellStep: number; cellY: number; newestFirst?: boolean };
         pickerNext: Point; editorNext: Point; caption: Point; keyboardBack: Point; draft: Point; finish: Point;
@@ -16,7 +16,7 @@ export const DEVICE_COORDINATES = {
         passcodeKeypad: { columnX: [117, 207, 297], rowY: [290, 386, 482, 578] },
         tiktok: {
             profileTab: { x: 361, y: 839 }, homeTab: { x: 40, y: 841 }, accountSwitcher: { x: 102, y: 121 },
-            create: { x: 205, y: 834 }, upload: { x: 28, y: 830 }, selectMultiple: { x: 49, y: 834 },
+            create: { x: 205, y: 834 }, upload: { x: 28, y: 830 }, uploadAlt: { x: 330, y: 725 }, selectMultiple: { x: 49, y: 834 },
             useLayout: { x: 41, y: 701 },
             picker: { circleX: 120, columnStep: 138, firstY: 153, trayY: 153, rowStep: 138, cellX: 69, cellStep: 138, cellY: 206, newestFirst: true },
             pickerNext: { x: 295, y: 845 }, editorNext: { x: 299, y: 830 }, caption: { x: 200, y: 280 },
