@@ -6,6 +6,8 @@ import { fileURLToPath } from 'node:url';
 import { pipeline } from 'node:stream/promises';
 
 import type { PhoneFarmPlugin, TaskDefinition, TaskExecutionContext } from './plugin.js';
+import { assistDirectory, readAssist, resolveAssist } from './tiktok/assist.js';
+import { readdir } from 'node:fs/promises';
 import type { JsonObject, JsonValue, ScheduleTiming } from './types.js';
 
 export interface TikTokPluginConfiguration {
@@ -167,6 +169,23 @@ export function createTikTokPlugin(configuration: TikTokPluginConfiguration = {}
             fragmentPath: fileURLToPath(new URL('../static/tiktok/device-panel.html', import.meta.url)), order: 100,
         }],
         async registerRoutes(context) {
+            // Operator assist: list open requests, resume or abort one.
+            context.app.get('/api/assist', async () => {
+                let names: string[] = [];
+                try { names = (await readdir(assistDirectory())).filter((name) => name.endsWith('.json')); } catch { names = []; }
+                const requests = (await Promise.all(names.map((name) => readAssist(name.replace(/\.json$/, ''))))).filter(Boolean);
+                return { requests };
+            });
+            context.app.post<{ Params: { udid: string }; Body: { note?: string } }>('/api/assist/:udid/resume', async (request, reply) => {
+                const resolved = await resolveAssist(request.params.udid, 'resume', request.body?.note);
+                if (!resolved) return reply.code(404).send({ error: 'No assist request is waiting for this device' });
+                return resolved;
+            });
+            context.app.post<{ Params: { udid: string }; Body: { note?: string } }>('/api/assist/:udid/abort', async (request, reply) => {
+                const resolved = await resolveAssist(request.params.udid, 'abort', request.body?.note);
+                if (!resolved) return reply.code(404).send({ error: 'No assist request is waiting for this device' });
+                return resolved;
+            });
             const deviceData = async (udid: string) => (await context.loadDevices()).find((device) => device.udid === udid);
             context.app.patch<{ Params: { udid: string }; Body: { accounts?: string[] } }>('/api/devices/:udid/accounts', async (request, reply) => {
                 if (!Array.isArray(request.body.accounts)) return reply.code(400).send({ error: 'accounts must be an array' });

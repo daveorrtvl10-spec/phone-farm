@@ -10,6 +10,7 @@ import { switchTikTokAccount, swipeCoordinate, tapCoordinate } from './actions.j
 import { recentPickerTargets } from './post-layout.js';
 import { isRedCheckboxChecked } from './pixel.js';
 import { recognizeRegionZoomed, recognizeWords, type OcrWord } from './ocr.js';
+import { awaitAssist } from './assist.js';
 
 function positiveInteger(name: string, fallback: number): number {
     const raw = process.env[name] ?? String(fallback);
@@ -339,7 +340,23 @@ async function advanceToCaptionScreen(
     }
     const file = await saveShot(remote, udid, 'caption-form-unreached');
     const seen = words.map((word) => word.text).join(', ') || '(nothing recognized)';
-    throw new Error(`Could not reach the TikTok caption form after ${ADVANCE_ATTEMPTS} steps (last screen: ${screen}). Screenshot saved to ${file}. OCR saw: ${seen}`);
+    await assistThenRecheck(remote, udid, 'advance to caption form', 'form',
+        `could not reach the caption form after ${ADVANCE_ATTEMPTS} steps (last screen: ${screen})`, file, seen);
+    console.log('Caption form reached (after operator assist)');
+}
+
+// Ask the operator for help and wait. After a resume the caller re-reads the
+// screen; the operator is expected to have put the phone on `expected`.
+async function assistThenRecheck(
+    remote: WdaRemoteControl, udid: string, step: string, expected: PostScreen | 'any', reason: string, file: string, seen: string,
+): Promise<OcrWord[]> {
+    await awaitAssist({ udid, step, reason: `${reason} — please bring TikTok to the ${expected} screen and resume`, screenshotPath: file, ocr: seen });
+    const words = await screenWords(remote, udid);
+    const screen = identifyScreen(words);
+    if (expected !== 'any' && screen !== expected) {
+        throw new Error(`${step}: after operator resume expected the ${expected} screen but saw ${screen}`);
+    }
+    return words;
 }
 
 async function requireScreen(remote: WdaRemoteControl, udid: string, expected: PostScreen, label: string): Promise<OcrWord[]> {
@@ -348,7 +365,7 @@ async function requireScreen(remote: WdaRemoteControl, udid: string, expected: P
     if (screen !== expected) {
         const file = await saveShot(remote, udid, `expected-${expected}`);
         const seen = words.map((word) => word.text).join(', ') || '(nothing recognized)';
-        throw new Error(`${label}: expected the ${expected} screen but saw ${screen}. Screenshot saved to ${file}. OCR saw: ${seen}`);
+        return assistThenRecheck(remote, udid, label, expected, `expected the ${expected} screen but saw ${screen}`, file, seen);
     }
     return words;
 }
@@ -510,7 +527,10 @@ try {
         const after = identifyScreen(await screenWords(deviceRemote, manifest.device.udid));
         if (after === 'form' || after === 'captionEditor') {
             const file = await saveShot(deviceRemote, manifest.device.udid, 'draft-not-saved');
-            throw new Error(`Tapped Drafts but the post form is still open — the draft was not saved. Screenshot saved to ${file}`);
+            await awaitAssist({ udid: manifest.device.udid, step: 'save draft', screenshotPath: file,
+                reason: 'tapped Drafts but the post form is still open — please save the draft by hand and resume' });
+            const again = identifyScreen(await screenWords(deviceRemote, manifest.device.udid));
+            if (again === 'form' || again === 'captionEditor') throw new Error('Draft still not saved after operator resume');
         }
         console.log('TikTok draft saved');
     }

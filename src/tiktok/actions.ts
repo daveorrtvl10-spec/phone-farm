@@ -4,6 +4,7 @@ import type { Browser } from 'webdriverio';
 
 import type { WdaRemoteControl } from '@git-agni/phone-farm-core';
 import { findHandleMatch, pointFromWord, PROFILE_HEADER_REGION, recognizeRegionZoomed, recognizeWords, type OcrWord } from './ocr.js';
+import { awaitAssist } from './assist.js';
 
 export async function tapCoordinate(driver: Browser, x: number, y: number, label: string): Promise<void> {
     await driver.performActions([{
@@ -169,7 +170,15 @@ export async function switchTikTokAccount(
     if (!onProfile) {
         const screenshotPath = await saveFailureScreenshot(remote, udid, 'profile-unreachable');
         const seen = profileWords.map((word) => word.text).join(', ') || '(nothing recognized)';
-        throw new Error(`Could not reach the TikTok Profile page after ${MAX_PROFILE_TAB_ATTEMPTS} taps. Screenshot saved to ${screenshotPath}. OCR saw: ${seen}`);
+        await awaitAssist({ udid, step: 'reach profile', screenshotPath, ocr: seen,
+            reason: `could not reach the TikTok Profile page after ${MAX_PROFILE_TAB_ATTEMPTS} taps — please open the Profile tab and resume` });
+        const shot = await remote.getScreenshot(udid);
+        profileWords = await recognizeWords(shot);
+        if (await handleVisibleOnProfile(shot, profileWords, targetHandle)) {
+            console.log(`Already on TikTok account ${targetHandle}`);
+            return;
+        }
+        if (!profilePageIsOpen(profileWords)) throw new Error('Profile page still not open after operator resume');
     }
 
     const MAX_SWITCHER_OPEN_ATTEMPTS = 4;
@@ -198,7 +207,16 @@ export async function switchTikTokAccount(
     if (!opened) {
         const screenshotPath = await saveFailureScreenshot(remote, udid, 'switcher-unopened');
         const seen = switcherWords.map((word) => word.text).join(', ') || '(nothing recognized)';
-        throw new Error(`Could not open the TikTok account switcher after ${MAX_SWITCHER_OPEN_ATTEMPTS} attempts. Screenshot saved to ${screenshotPath}. OCR saw: ${seen}`);
+        await awaitAssist({ udid, step: 'open account switcher', screenshotPath, ocr: seen,
+            reason: `could not open the account switcher after ${MAX_SWITCHER_OPEN_ATTEMPTS} taps — please open it (tap the username) and resume, or switch to ${targetHandle} yourself and leave the Profile page open` });
+        const shot = await remote.getScreenshot(udid);
+        switcherWords = await recognizeWords(shot);
+        if (await handleVisibleOnProfile(shot, switcherWords, targetHandle)) {
+            console.log(`Already on TikTok account ${targetHandle}`);
+            return;
+        }
+        opened = switcherIsOpen(switcherWords);
+        if (!opened) throw new Error('Account switcher still not open after operator resume');
     }
 
     const targetMatch = findHandleMatch(switcherWords, targetHandle);

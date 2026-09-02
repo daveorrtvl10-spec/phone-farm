@@ -10,6 +10,7 @@ import { Readable } from 'node:stream';
 
 import { discoverConnectedDevices } from '../devices/discovery.js';
 import { loadRegisteredDevices, mutateRegisteredDevices, saveRegisteredDevices, redactDevice, PASSCODE_PATTERN, type RegisteredDevice } from '../devices/registry.js';
+import { readAssist } from '../tiktok/assist.js';
 import {
     CALIBRATABLE_POINTS, POINT_LABELS, coordinatesForProfile, resolveDeviceCoordinates, validateCoordinateOverrides,
 } from '../devices/coordinates.js';
@@ -402,7 +403,9 @@ export async function createApp(options: CreateAppOptions): Promise<FastifyInsta
             .send(Readable.from(upstream.body as AsyncIterable<Uint8Array>));
     });
     app.post<{ Params: { udid: string }; Body: RemoteAction }>('/api/devices/:udid/remote/action', async (request, reply) => {
-        if (await options.scheduler.activeExecution(request.params.udid)) {
+        // A run paused on an assist request hands the phone to the operator.
+        const assist = await readAssist(request.params.udid);
+        if (assist?.state !== 'waiting' && await options.scheduler.activeExecution(request.params.udid)) {
             return reply.code(409).send({ error: 'Remote input is disabled while automation is running' });
         }
         await remote.performAction(request.params.udid, request.body);
