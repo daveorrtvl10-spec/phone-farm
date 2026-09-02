@@ -1,4 +1,5 @@
 import { recognize } from 'node-native-ocr';
+import sharp from 'sharp';
 
 // node-native-ocr@0.4.18 ships a stale .d.ts declaring an `output` option,
 // but the installed runtime (src/index.js) actually reads `format` — confirmed
@@ -46,6 +47,35 @@ export async function recognizeWords(image: Buffer): Promise<OcrWord[]> {
     const tsv = await recognizeRaw(image, { format: 'tsv' });
     return parseTsv(tsv);
 }
+
+/**
+ * OCR a fraction of the screenshot at 2x. Small grey UI text (the @handle
+ * under a TikTok display name) is routinely skipped by a full-frame pass but
+ * reads cleanly when the region is cropped and upscaled (verified on two real
+ * Xs Max captures, 2026-09-02). Word boxes are mapped back to full-frame
+ * device pixels so pointFromWord() still works.
+ */
+export async function recognizeRegionZoomed(
+    image: Buffer, region: { left: number; top: number; width: number; height: number }, factor = 2,
+): Promise<OcrWord[]> {
+    const meta = await sharp(image).metadata();
+    const width = meta.width ?? 0;
+    const height = meta.height ?? 0;
+    const box = {
+        left: Math.round(width * region.left), top: Math.round(height * region.top),
+        width: Math.round(width * region.width), height: Math.round(height * region.height),
+    };
+    const zoomed = await sharp(image).extract(box).resize({ width: box.width * factor }).png().toBuffer();
+    const words = await recognizeWords(zoomed);
+    return words.map((word) => ({
+        ...word,
+        x: box.left + word.x / factor, y: box.top + word.y / factor,
+        width: word.width / factor, height: word.height / factor,
+    }));
+}
+
+/** The TikTok profile header: display name, @handle, stats row. */
+export const PROFILE_HEADER_REGION = { left: 0, top: 0.08, width: 0.7, height: 0.14 };
 
 function normalizeHandle(handle: string): string {
     return handle.trim().toLowerCase().replace(/^@/, '');

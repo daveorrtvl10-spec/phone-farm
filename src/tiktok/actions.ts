@@ -3,7 +3,7 @@ import path from 'node:path';
 import type { Browser } from 'webdriverio';
 
 import type { WdaRemoteControl } from '@git-agni/phone-farm-core';
-import { findHandleMatch, pointFromWord, recognizeWords, type OcrWord } from './ocr.js';
+import { findHandleMatch, pointFromWord, PROFILE_HEADER_REGION, recognizeRegionZoomed, recognizeWords, type OcrWord } from './ocr.js';
 
 export async function tapCoordinate(driver: Browser, x: number, y: number, label: string): Promise<void> {
     await driver.performActions([{
@@ -71,6 +71,15 @@ async function saveFailureScreenshot(remote: WdaRemoteControl, udid: string, nam
     return screenshotPath;
 }
 
+// Full-frame OCR first, then a zoomed pass over the header — the small grey
+// @handle is the thing the full pass keeps missing.
+async function handleVisibleOnProfile(screenshot: Buffer, words: OcrWord[], targetHandle: string): Promise<boolean> {
+    if (findHandleMatch(words, targetHandle)) return true;
+    if (!profilePageIsOpen(words)) return false;
+    const header = await recognizeRegionZoomed(screenshot, PROFILE_HEADER_REGION);
+    return Boolean(findHandleMatch(header, targetHandle));
+}
+
 // The profile header always carries the Following / Followers / Likes row.
 export function profilePageIsOpen(words: OcrWord[]): boolean {
     const seen = new Set(words.map((word) => word.text.trim().toLowerCase()));
@@ -111,8 +120,9 @@ export async function switchTikTokAccount(
         // "Whisper" feature prompt), and it needs time to appear and, in some
         // cases, auto-dismiss before it stops intercepting taps in that area.
         await driver.pause(2000);
-        profileWords = await recognizeWords(await remote.getScreenshot(udid));
-        if (findHandleMatch(profileWords, targetHandle)) {
+        const shot = await remote.getScreenshot(udid);
+        profileWords = await recognizeWords(shot);
+        if (await handleVisibleOnProfile(shot, profileWords, targetHandle)) {
             console.log(`Already on TikTok account ${targetHandle}`);
             return;
         }
@@ -167,7 +177,8 @@ export async function switchTikTokAccount(
     // the target, the phone is signed into exactly one account and the
     // post-switch profile reread (small grey text, often hidden by tooltips
     // such as "What's up?" — seen live) cannot tell us anything more.
-    const listedHandles = switcherWords.filter((word) => word.text.trim().startsWith('@'));
+    // OCR reads the status-bar battery glyph as "@)" — require a real handle shape.
+    const listedHandles = switcherWords.filter((word) => /^@[\w.]{3,}$/.test(word.text.trim()));
     const soleAccount = listedHandles.length === 1 && listedHandles[0] === targetMatch;
     await tapCoordinate(driver, targetPoint.x, targetPoint.y, `Account row for ${targetHandle}`);
     // TikTok fully reloads app state after switching accounts.
@@ -180,10 +191,11 @@ export async function switchTikTokAccount(
     }
 
     await tapCoordinate(driver, coords.profileTabX, coords.profileTabY, 'Profile tab (verify)');
-    await driver.pause(1000);
+    await driver.pause(2000);
 
-    const verifyWords = await recognizeWords(await remote.getScreenshot(udid));
-    if (!findHandleMatch(verifyWords, targetHandle)) {
+    const verifyShot = await remote.getScreenshot(udid);
+    const verifyWords = await recognizeWords(verifyShot);
+    if (!(await handleVisibleOnProfile(verifyShot, verifyWords, targetHandle))) {
         const screenshotPath = path.resolve('.wda', `account-switch-failed-${udid}.png`);
         await mkdir(path.dirname(screenshotPath), { recursive: true });
         await writeFile(screenshotPath, await remote.getScreenshot(udid));

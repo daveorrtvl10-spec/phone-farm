@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { remote, type Browser } from 'webdriverio';
 
@@ -9,7 +9,7 @@ import { coordinateProfile, registeredAccounts } from './runtime-settings.js';
 import { switchTikTokAccount, tapCoordinate } from './actions.js';
 import { recentPickerTargets } from './post-layout.js';
 import { isRedCheckboxChecked } from './pixel.js';
-import { pointFromWord, recognizeWords, type OcrWord } from './ocr.js';
+import { recognizeWords, type OcrWord } from './ocr.js';
 
 function positiveInteger(name: string, fallback: number): number {
     const raw = process.env[name] ?? String(fallback);
@@ -124,6 +124,7 @@ async function chooseRecentMedia(
     coordinates: TikTokCoordinates['tiktok'],
 ): Promise<void> {
     const latestIndex = assetCount - 1;
+    await requireScreen(remote, udid, 'picker', 'Opening the photo picker');
     if (count > 1) {
         await ensureCheckboxState(driver, remote, udid, {
             x: coordinates.selectMultiple.x,
@@ -141,10 +142,15 @@ async function chooseRecentMedia(
             await tapCoordinate(driver, x, y, `media ${selection + 1}/${count}`);
             await driver.pause(600);
         }
-        await ensureCheckboxState(driver, remote, udid, {
-            x: coordinates.useLayout.x,
-            y: coordinates.useLayout.y,
-        }, 'Use layout', false);
+        // "Use layout" only appears once 2+ items are ticked; it defaults off.
+        if (has(await screenWords(remote, udid), /^layout$/i)) {
+            await ensureCheckboxState(driver, remote, udid, {
+                x: coordinates.useLayout.x,
+                y: coordinates.useLayout.y,
+            }, 'Use layout', false);
+        } else {
+            console.log('"Use layout" not shown; skipping');
+        }
     } else {
         const column = coordinates.picker.newestFirst ? 0 : latestIndex % 3;
         const x = coordinates.picker.cellX + (column * coordinates.picker.cellStep);
@@ -157,69 +163,94 @@ async function chooseRecentMedia(
 function wordIs(word: OcrWord, pattern: RegExp): boolean {
     return pattern.test(word.text.trim());
 }
-
-// The caption/post form is the only TikTok screen that shows both buttons.
-function captionScreenIsOpen(words: OcrWord[]): boolean {
-    return words.some((word) => wordIs(word, /^drafts?$/i)) && words.some((word) => wordIs(word, /^post$/i));
+function has(words: OcrWord[], pattern: RegExp): boolean {
+    return words.some((word) => wordIs(word, pattern));
 }
 
-const ADVANCE_ATTEMPTS = 5;
+// Screen signatures, from readable words only. OCR cannot read white-on-red
+// buttons (Next, Post) or the icon+label Drafts button, so those are tapped at
+// profile coordinates and the *screen* is identified by its other labels.
+// Mapped live on an Xs Max, TikTok Sept 2026.
+type PostScreen = 'picker' | 'preview' | 'editor' | 'form' | 'captionEditor' | 'unknown';
+function identifyScreen(words: OcrWord[]): PostScreen {
+    const location = has(words, /^location$/i);
+    const share = has(words, /^share$/i);
+    const catchy = has(words, /^catchy$/i) || has(words, /^description$/i);
+    if (location && share) return 'form';                      // caption/post form
+    if (catchy && has(words, /^\d+\/4000$/)) return 'captionEditor'; // full-screen text editor
+    if (has(words, /^recents$/i) || (has(words, /^select$/i) && has(words, /^multiple$/i))) return 'picker';
+    if (has(words, /^autocut$/i)) return 'preview';             // single-photo full-screen preview
+    if (has(words, /^sound$/i) || has(words, /^story$/i)) return 'editor';
+    return 'unknown';
+}
 
-// Walk picker → editor → caption form by reading the screen, not by counting
-// taps. On current TikTok a single photo (Select multiple off) can jump
-// straight to the editor, so a fixed picker-Next / editor-Next pair lands one
-// screen early — and the editor-Next coordinate sits on top of the caption
-// form's Post button. Verified the hard way on 2026-09-02.
+async function screenWords(remote: WdaRemoteControl, udid: string): Promise<OcrWord[]> {
+    return recognizeWords(await remote.getScreenshot(udid));
+}
+
+async function saveShot(remote: WdaRemoteControl, udid: string, name: string): Promise<string> {
+    const file = path.resolve('.wda', `${name}-${udid}.png`);
+    await mkdir(path.dirname(file), { recursive: true });
+    await writeFile(file, await remote.getScreenshot(udid));
+    return file;
+}
+
+const ADVANCE_ATTEMPTS = 8;
+
+// Walk picker → (preview) → editor → form by reading the screen, not by
+// counting taps. A single photo opens a full-screen preview first; multiple
+// photos go straight to the editor. The old fixed picker-Next/editor-Next pair
+// landed one screen early and its editor-Next coordinate sits on the form's
+// Post button. Verified the hard way on 2026-09-02.
 async function advanceToCaptionScreen(
     driver: Browser, remote: WdaRemoteControl, udid: string, coordinates: TikTokCoordinates['tiktok'],
 ): Promise<void> {
-    const { scale } = await remote.getScreenInfo(udid);
     let words: OcrWord[] = [];
+    let screen: PostScreen = 'unknown';
     for (let attempt = 1; attempt <= ADVANCE_ATTEMPTS; attempt += 1) {
-        words = await recognizeWords(await remote.getScreenshot(udid));
-        if (captionScreenIsOpen(words)) {
+        words = await screenWords(remote, udid);
+        screen = identifyScreen(words);
+        if (screen === 'form') {
             console.log('Caption form reached');
             return;
         }
-        // "Next", "Next (3)", "Next(3)" — pick the lowest one on screen (the
-        // picker/editor primary button is always at the bottom).
-        const next = words.filter((word) => wordIs(word, /^next(\(\d+\))?$/i)).sort((a, b) => b.y - a.y)[0];
-        if (next) {
-            const point = pointFromWord(next, scale);
-            await tapCoordinate(driver, point.x, point.y, `Next (OCR, step ${attempt})`);
+        if (screen === 'picker' || screen === 'preview') {
+            await tapCoordinate(driver, coordinates.pickerNext.x, coordinates.pickerNext.y, `Next on ${screen}`);
+            await driver.pause(3500);
+        } else if (screen === 'editor') {
+            await tapCoordinate(driver, coordinates.editorNext.x, coordinates.editorNext.y, 'Next on editor');
+            await driver.pause(3500);
         } else {
-            const fallback = attempt === 1 ? coordinates.pickerNext : coordinates.editorNext;
-            await tapCoordinate(driver, fallback.x, fallback.y, `Next (profile fallback, step ${attempt})`);
+            // Transition still rendering — look again before touching anything.
+            console.log(`Screen not recognised yet (step ${attempt}); waiting`);
+            await driver.pause(1500);
         }
-        await driver.pause(3000);
     }
+    const file = await saveShot(remote, udid, 'caption-form-unreached');
     const seen = words.map((word) => word.text).join(', ') || '(nothing recognized)';
-    throw new Error(`Could not reach the TikTok caption form after ${ADVANCE_ATTEMPTS} steps. OCR saw: ${seen}`);
+    throw new Error(`Could not reach the TikTok caption form after ${ADVANCE_ATTEMPTS} steps (last screen: ${screen}). Screenshot saved to ${file}. OCR saw: ${seen}`);
 }
 
-// Locate a caption-form button by its label and tap it. Falls back to the
-// profile coordinate only when OCR cannot see the label at all.
-async function tapCaptionFormButton(
-    driver: Browser, remote: WdaRemoteControl, udid: string, pattern: RegExp, fallback: { x: number; y: number }, label: string,
-): Promise<void> {
-    const { scale } = await remote.getScreenInfo(udid);
-    const words = await recognizeWords(await remote.getScreenshot(udid));
-    if (!captionScreenIsOpen(words)) {
+async function requireScreen(remote: WdaRemoteControl, udid: string, expected: PostScreen, label: string): Promise<OcrWord[]> {
+    const words = await screenWords(remote, udid);
+    const screen = identifyScreen(words);
+    if (screen !== expected) {
+        const file = await saveShot(remote, udid, `expected-${expected}`);
         const seen = words.map((word) => word.text).join(', ') || '(nothing recognized)';
-        throw new Error(`Not on the TikTok caption form when about to tap ${label}. OCR saw: ${seen}`);
+        throw new Error(`${label}: expected the ${expected} screen but saw ${screen}. Screenshot saved to ${file}. OCR saw: ${seen}`);
     }
-    const match = words.filter((word) => wordIs(word, pattern)).sort((a, b) => b.y - a.y)[0];
-    if (match) {
-        const point = pointFromWord(match, scale);
-        await tapCoordinate(driver, point.x, point.y, `${label} (OCR)`);
-    } else {
-        await tapCoordinate(driver, fallback.x, fallback.y, `${label} (profile fallback)`);
-    }
+    return words;
 }
 
-async function addCaption(driver: Browser, coordinates: TikTokCoordinates['tiktok'], caption?: string): Promise<void> {
+async function addCaption(
+    driver: Browser, remote: WdaRemoteControl, udid: string, coordinates: TikTokCoordinates['tiktok'], caption?: string,
+): Promise<void> {
     if (!caption) return;
-    await tapCoordinate(driver, coordinates.caption.x, coordinates.caption.y, 'caption');
+    // `caption` is the description field on the post form; tapping it opens a
+    // full-screen text editor with the keyboard up.
+    await tapCoordinate(driver, coordinates.caption.x, coordinates.caption.y, 'description field');
+    await driver.pause(1500);
+    await requireScreen(remote, udid, 'captionEditor', 'Opening the description editor');
     const appiumHost = process.env.APPIUM_HOST ?? '127.0.0.1';
     const appiumPort = positiveInteger('APPIUM_PORT', 4725);
     const response = await fetch(`http://${appiumHost}:${appiumPort}/session/${driver.sessionId}/keys`, {
@@ -228,10 +259,12 @@ async function addCaption(driver: Browser, coordinates: TikTokCoordinates['tikto
         body: JSON.stringify({ value: [caption] }),
     });
     if (!response.ok) throw new Error(`Appium could not type the caption: ${await response.text()}`);
-    await driver.pause(500);
-    // On this TikTok screen, Back dismisses the keyboard without leaving the form.
-    await tapCoordinate(driver, coordinates.keyboardBack.x, coordinates.keyboardBack.y, 'keyboard Back');
-    await driver.pause(1000);
+    await driver.pause(800);
+    // The editor's top-left back arrow returns to the form with the text kept.
+    // (Its top-right button is Post — never tap anything else up there.)
+    await tapCoordinate(driver, coordinates.keyboardBack.x, coordinates.keyboardBack.y, 'editor back');
+    await driver.pause(1500);
+    await requireScreen(remote, udid, 'form', 'Returning from the description editor');
     console.log('Caption added');
 }
 
@@ -327,19 +360,21 @@ if (!reachedCaptionScreen || !driver) {
 }
 
 try {
-    await addCaption(driver, tiktokCoordinates, manifest.caption);
+    await addCaption(driver, deviceRemote, manifest.device.udid, tiktokCoordinates, manifest.caption);
+    await requireScreen(deviceRemote, manifest.device.udid, 'form', 'Before submitting');
     if (manifest.destination === 'publish') {
-        await tapCaptionFormButton(driver, deviceRemote, manifest.device.udid, /^post$/i, tiktokCoordinates.finish, 'Post');
+        await tapCoordinate(driver, tiktokCoordinates.finish.x, tiktokCoordinates.finish.y, 'Post');
         console.log('TikTok post submitted');
         // The upload to TikTok continues in the background after this tap —
         // tearing down the session too soon can interrupt it.
         await driver.pause(60_000);
     } else {
-        await tapCaptionFormButton(driver, deviceRemote, manifest.device.udid, /^drafts?$/i, tiktokCoordinates.draft, 'Drafts');
-        await driver.pause(2500);
-        const after = await recognizeWords(await deviceRemote.getScreenshot(manifest.device.udid));
-        if (captionScreenIsOpen(after)) {
-            throw new Error('Tapped Drafts but the caption form is still open — the draft was not saved');
+        await tapCoordinate(driver, tiktokCoordinates.draft.x, tiktokCoordinates.draft.y, 'Drafts');
+        await driver.pause(3000);
+        const after = identifyScreen(await screenWords(deviceRemote, manifest.device.udid));
+        if (after === 'form' || after === 'captionEditor') {
+            const file = await saveShot(deviceRemote, manifest.device.udid, 'draft-not-saved');
+            throw new Error(`Tapped Drafts but the post form is still open — the draft was not saved. Screenshot saved to ${file}`);
         }
         console.log('TikTok draft saved');
     }

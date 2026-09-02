@@ -94,7 +94,7 @@ export const DEVICE_COORDINATES = {
             },
             pickerNext: { x: 295, y: 845 },
             editorNext: { x: 299, y: 830 },
-            caption: { x: 66, y: 119 },
+            caption: { x: 200, y: 280 },
             keyboardBack: { x: 28, y: 62 },
             draft: { x: 111, y: 830 },
             finish: { x: 309, y: 826 },

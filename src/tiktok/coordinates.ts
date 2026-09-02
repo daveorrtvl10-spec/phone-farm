@@ -19,7 +19,7 @@ export const DEVICE_COORDINATES = {
             create: { x: 205, y: 834 }, upload: { x: 28, y: 830 }, selectMultiple: { x: 49, y: 834 },
             useLayout: { x: 41, y: 701 },
             picker: { circleX: 120, columnStep: 138, firstY: 153, trayY: 153, rowStep: 138, cellX: 69, cellStep: 138, cellY: 206, newestFirst: true },
-            pickerNext: { x: 295, y: 845 }, editorNext: { x: 299, y: 830 }, caption: { x: 66, y: 119 },
+            pickerNext: { x: 295, y: 845 }, editorNext: { x: 299, y: 830 }, caption: { x: 200, y: 280 },
             keyboardBack: { x: 28, y: 62 }, draft: { x: 111, y: 830 }, finish: { x: 309, y: 826 },
             like: { x: 382, y: 470 }, save: { x: 383, y: 602 }, swipe: { x: 207, startY: 700, endY: 250, durationMs: 450 },
         },
