@@ -94,7 +94,7 @@ export const DEVICE_COORDINATES = {
                 cellStep: 138,
                 cellY: 735,
             },
-            pickerNext: { x: 295, y: 845 },
+            pickerNext: { x: 340, y: 838 },
             editorNext: { x: 299, y: 830 },
             caption: { x: 200, y: 280 },
             keyboardBack: { x: 28, y: 62 },

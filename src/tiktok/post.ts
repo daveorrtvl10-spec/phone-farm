@@ -251,6 +251,12 @@ function has(words: OcrWord[], pattern: RegExp): boolean {
     return words.some((word) => wordIs(word, pattern));
 }
 
+// An iOS keyboard OCRs as a row of single letters.
+function keyboardVisible(words: OcrWord[]): boolean {
+    const letters = new Set(words.map((word) => word.text.trim()).filter((text) => /^[a-zA-Z]$/.test(text)).map((text) => text.toLowerCase()));
+    return ['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'].filter((key) => letters.has(key)).length >= 6;
+}
+
 // Screen signatures, from readable words only. OCR cannot read white-on-red
 // buttons (Next, Post) or the icon+label Drafts button, so those are tapped at
 // profile coordinates and the *screen* is identified by its other labels.
@@ -262,6 +268,7 @@ function identifyScreen(words: OcrWord[]): PostScreen {
     const catchy = has(words, /^catchy$/i) || has(words, /^description$/i);
     if (location && share) return 'form';                      // caption/post form
     if (catchy && has(words, /^\d+\/4000$/)) return 'captionEditor'; // full-screen text editor
+    if (keyboardVisible(words)) return 'captionEditor';               // inline keyboard on the slideshow form
     if (has(words, /^recents$/i) || (has(words, /^select$/i) && has(words, /^multiple$/i))) return 'picker';
     if (has(words, /^autocut$/i)) return 'preview';             // single-photo full-screen preview
     // The camera also shows "Add sound"; its mode strip (CAMERA / PHOTO / CREATE
@@ -375,9 +382,19 @@ async function addCaption(
     });
     if (!response.ok) throw new Error(`Appium could not type the caption: ${await response.text()}`);
     await driver.pause(800);
-    // The editor's top-left back arrow returns to the form with the text kept.
-    // (Its top-right button is Post — never tap anything else up there.)
-    await tapCoordinate(driver, coordinates.keyboardBack.x, coordinates.keyboardBack.y, 'editor back');
+    // Two layouts, both seen live:
+    //  - full-screen text editor (single-photo form): its top-left back arrow
+    //    returns to the form with the text kept; top-right there is Post.
+    //  - inline keyboard on the form itself (slideshow form, "Location" row
+    //    still visible above the keys): the top-left arrow here is the FORM's
+    //    back and leaves it. A tap on the blank strip between the chips and
+    //    the Location row drops the keyboard and keeps everything.
+    const typed = await screenWords(remote, udid);
+    if (has(typed, /^location$/i)) {
+        await tapCoordinate(driver, 300, 330, 'blank strip (dismiss inline keyboard)');
+    } else {
+        await tapCoordinate(driver, coordinates.keyboardBack.x, coordinates.keyboardBack.y, 'editor back');
+    }
     await driver.pause(1500);
     await requireScreen(remote, udid, 'form', 'Returning from the description editor');
     console.log('Caption added');
