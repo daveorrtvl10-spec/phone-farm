@@ -33,7 +33,6 @@ export interface DeviceCoordinates {
             cellX: number;
             cellStep: number;
             cellY: number;
-            newestFirst?: boolean;
         };
         pickerNext: Point;
         editorNext: Point;
@@ -82,18 +81,18 @@ export const DEVICE_COORDINATES = {
             selectMultiple: { x: 24, y: 836 }, // the checkbox circle itself: the red-pixel check samples here
             useLayout: { x: 24, y: 704 },
             picker: {
-                // Measured from the live picker 2026-09-02: 3 cols of 138pt, grid
-                // starts directly under the Recents tabs, newest asset top-left.
-                // Verified: the grid does not shift when the selection tray appears, so trayY = firstY.
+                // Measured on device 2026-09-02 over three manual passes. The grid is
+                // oldest-first and opens scrolled to the bottom, so the newest asset is
+                // the last cell. Circle of the last row: y=683 before the selection tray
+                // appears, y=600 after it (tray pushes the grid up 83pt). Rows 138pt.
                 circleX: 120,
                 columnStep: 138,
-                firstY: 153,
-                trayY: 153,
+                firstY: 683,
+                trayY: 600,
                 rowStep: 138,
                 cellX: 69,
                 cellStep: 138,
-                cellY: 206,
-                newestFirst: true,
+                cellY: 735,
             },
             pickerNext: { x: 295, y: 845 },
             editorNext: { x: 299, y: 830 },

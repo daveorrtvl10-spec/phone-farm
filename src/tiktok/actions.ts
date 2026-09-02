@@ -72,7 +72,7 @@ async function dismissInterstitial(driver: Browser, words: OcrWord[], scale: num
     // Bare "X" close glyph in the top strip (full-screen promos: "Create your
     // TikTok avatar" — seen live — offer nothing else).
     // Promo sheets put their X up to ~a quarter of the way down (avatar promo, seen live).
-    const close = words.find((word) => /^[xX×]$/.test(word.text.trim()) && word.y < 0.28 * 896 * scale);
+    const close = words.find((word) => /^[xX×]$/.test(word.text.trim()) && word.y < 0.6 * 896 * scale);
     if (close) {
         const point = pointFromWord(close, scale);
         await tapCoordinate(driver, point.x, point.y, 'dismiss "X"');

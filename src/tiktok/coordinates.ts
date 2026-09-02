@@ -4,7 +4,7 @@ export interface TikTokCoordinates {
     tiktok: {
         profileTab: Point; homeTab: Point; accountSwitcher: Point; create: Point; upload: Point; uploadAlt?: Point;
         selectMultiple: Point; useLayout: Point;
-        picker: { circleX: number; columnStep: number; firstY: number; trayY: number; rowStep: number; cellX: number; cellStep: number; cellY: number; newestFirst?: boolean };
+        picker: { circleX: number; columnStep: number; firstY: number; trayY: number; rowStep: number; cellX: number; cellStep: number; cellY: number };
         pickerNext: Point; editorNext: Point; caption: Point; keyboardBack: Point; draft: Point; finish: Point;
         like: Point; save: Point; swipe: { x: number; startY: number; endY: number; durationMs: number };
     };
@@ -18,7 +18,7 @@ export const DEVICE_COORDINATES = {
             profileTab: { x: 361, y: 839 }, homeTab: { x: 40, y: 841 }, accountSwitcher: { x: 102, y: 121 },
             create: { x: 205, y: 834 }, upload: { x: 28, y: 830 }, uploadAlt: { x: 330, y: 725 }, selectMultiple: { x: 24, y: 836 },
             useLayout: { x: 24, y: 704 },
-            picker: { circleX: 120, columnStep: 138, firstY: 153, trayY: 153, rowStep: 138, cellX: 69, cellStep: 138, cellY: 206, newestFirst: true },
+            picker: { circleX: 120, columnStep: 138, firstY: 683, trayY: 600, rowStep: 138, cellX: 69, cellStep: 138, cellY: 735 },
             pickerNext: { x: 295, y: 845 }, editorNext: { x: 299, y: 830 }, caption: { x: 200, y: 280 },
             keyboardBack: { x: 28, y: 62 }, draft: { x: 111, y: 830 }, finish: { x: 309, y: 826 },
             like: { x: 382, y: 470 }, save: { x: 383, y: 602 }, swipe: { x: 207, startY: 700, endY: 250, durationMs: 450 },

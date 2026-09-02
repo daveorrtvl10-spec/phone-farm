@@ -9,7 +9,7 @@ import { coordinateProfile, registeredAccounts } from './runtime-settings.js';
 import { switchTikTokAccount, swipeCoordinate, tapCoordinate } from './actions.js';
 import { recentPickerTargets } from './post-layout.js';
 import { isRedCheckboxChecked } from './pixel.js';
-import { recognizeWords, type OcrWord } from './ocr.js';
+import { recognizeRegionZoomed, recognizeWords, type OcrWord } from './ocr.js';
 
 function positiveInteger(name: string, fallback: number): number {
     const raw = process.env[name] ?? String(fallback);
@@ -112,7 +112,7 @@ const UPLOAD_ATTEMPTS = 4;
 async function dismissOverlay(driver: Browser, remote: WdaRemoteControl, udid: string): Promise<boolean> {
     const { scale } = await remote.getScreenInfo(udid);
     const words = await screenWords(remote, udid);
-    const topStrip = 0.28 * 896 * scale;
+    const topStrip = 0.6 * 896 * scale; // promo sheets put their X as low as mid-screen (seen live)
     const close = words.find((word) => /^[xX×]$/.test(word.text.trim()) && word.y < topStrip);
     const label = words.find((word) => /^(skip|cancel|close|later|dismiss)$/i.test(word.text.trim()))
         ?? words.find((word) => /^not$/i.test(word.text.trim()) && words.some((n) => /^now$/i.test(n.text.trim()) && Math.abs(n.y - word.y) < word.height));
@@ -195,13 +195,16 @@ async function chooseRecentMedia(
 ): Promise<void> {
     const latestIndex = assetCount - 1;
     await openPicker(driver, remote, udid, coordinates);
-    // The picker remembers its scroll offset between sessions (seen live);
-    // cell 0 must be the newest asset, so drag the grid back to the top.
-    await swipeCoordinate(driver, { x: 207, startY: 300, endY: 750, durationMs: 350 }, 'picker grid to top');
-    await driver.pause(1200);
+    // The grid opens scrolled to the bottom (newest last) but remembers a
+    // manual scroll; two upward flicks guarantee the bottom.
+    for (let i = 0; i < 2; i += 1) {
+        await swipeCoordinate(driver, { x: 207, startY: 780, endY: 300, durationMs: 300 }, 'picker grid to bottom');
+        await driver.pause(600);
+    }
+    await driver.pause(800);
     if (count === 1) {
-        // "Select multiple" persists too; with it on, a single tap only ticks
-        // the cell instead of opening the preview.
+        // "Select multiple" persists between sessions; with it on, a single tap
+        // only ticks the cell instead of opening the preview.
         await ensureCheckboxState(driver, remote, udid, {
             x: coordinates.selectMultiple.x,
             y: coordinates.selectMultiple.y,
@@ -218,7 +221,6 @@ async function chooseRecentMedia(
             firstY: coordinates.picker.firstY,
             trayY: coordinates.picker.trayY,
             rowStep: coordinates.picker.rowStep,
-            newestFirst: coordinates.picker.newestFirst,
         });
         for (const [selection, { x, y }] of targets.entries()) {
             await tapCoordinate(driver, x, y, `media ${selection + 1}/${count}`);
@@ -234,7 +236,7 @@ async function chooseRecentMedia(
             console.log('"Use layout" not shown; skipping');
         }
     } else {
-        const column = coordinates.picker.newestFirst ? 0 : latestIndex % 3;
+        const column = latestIndex % 3;
         const x = coordinates.picker.cellX + (column * coordinates.picker.cellStep);
         await tapCoordinate(driver, x, coordinates.picker.cellY, 'media 1/1');
         await driver.pause(1000);
@@ -268,13 +270,26 @@ function identifyScreen(words: OcrWord[]): PostScreen {
     // viewfinder: mode strip (CAMERA/CREATE/POST), duration chips (PHOTO/60s/15s),
     // side tools (Timer/Ratio/Beauty). Checked before the editor because both
     // show "Add sound".
-    if (has(words, /^(camera|create|post|photo|60s|15s)$/i) || has(words, /^(timer|ratio|beauty)$/i)) return 'camera';
+    // Bare "Create"/"Post" also appear on the profile (AI-self promo button) —
+    // require a camera-only label, or the mode strip's two words together.
+    if (has(words, /^(camera|photo|60s|15s)$/i) || has(words, /^(timer|ratio|beauty)$/i)
+        || (has(words, /^post$/i) && has(words, /^create$/i))) return 'camera';
     if (has(words, /^story$/i) || has(words, /^sound$/i)) return 'editor';
     return 'unknown';
 }
 
+// Full-frame OCR returns nothing at all on image-heavy screens (the picker
+// grid full of faces, the editor — seen live, repeatedly). The chrome that
+// identifies a screen lives in the top and bottom strips, which read reliably
+// when cropped and upscaled, so always merge those in.
 async function screenWords(remote: WdaRemoteControl, udid: string): Promise<OcrWord[]> {
-    return recognizeWords(await remote.getScreenshot(udid));
+    const shot = await remote.getScreenshot(udid);
+    const [full, top, bottom] = await Promise.all([
+        recognizeWords(shot),
+        recognizeRegionZoomed(shot, { left: 0, top: 0.04, width: 1, height: 0.12 }),
+        recognizeRegionZoomed(shot, { left: 0, top: 0.86, width: 1, height: 0.12 }),
+    ]);
+    return [...full, ...top, ...bottom];
 }
 
 async function saveShot(remote: WdaRemoteControl, udid: string, name: string): Promise<string> {
@@ -335,9 +350,20 @@ async function addCaption(
     driver: Browser, remote: WdaRemoteControl, udid: string, coordinates: TikTokCoordinates['tiktok'], caption?: string,
 ): Promise<void> {
     if (!caption) return;
-    // `caption` is the description field on the post form; tapping it opens a
-    // full-screen text editor with the keyboard up.
-    await tapCoordinate(driver, coordinates.caption.x, coordinates.caption.y, 'description field');
+    // The description field sits mid-form on single-photo posts ("Writing a
+    // long description…") and top-left on slideshows ("Add description…") —
+    // two layouts, seen live. Find the word and tap it; profile point as fallback.
+    const { scale } = await remote.getScreenInfo(udid);
+    const shot = await remote.getScreenshot(udid);
+    const formWords = await recognizeRegionZoomed(shot, { left: 0, top: 0.04, width: 1, height: 0.5 });
+    const field = formWords.find((word) => /^description/i.test(word.text.trim()));
+    if (field) {
+        const x = Math.round((field.x + field.width / 2) / scale);
+        const y = Math.round((field.y + field.height / 2) / scale);
+        await tapCoordinate(driver, x, y, 'description field (OCR)');
+    } else {
+        await tapCoordinate(driver, coordinates.caption.x, coordinates.caption.y, 'description field (profile fallback)');
+    }
     await driver.pause(1500);
     await requireScreen(remote, udid, 'captionEditor', 'Opening the description editor');
     const appiumHost = process.env.APPIUM_HOST ?? '127.0.0.1';
