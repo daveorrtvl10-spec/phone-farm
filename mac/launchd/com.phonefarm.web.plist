@@ -5,12 +5,13 @@
   <key>Label</key><string>com.phonefarm.web</string>
   <key>ProgramArguments</key>
   <array>
-    <string>/bin/zsh</string><string>-lc</string>
-    <string>cd $HOME/phone-farm &amp;&amp; exec npm run web</string>
+    <string>/bin/zsh</string><string>-c</string>
+    <string>export PATH=$HOME/.nvm/versions/node/v24.0.1/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin; cd $HOME/phone-farm &amp;&amp; exec npm run web</string>
   </array>
   <key>WorkingDirectory</key><string>__HOME__/phone-farm</string>
   <key>RunAtLoad</key><true/>
   <key>KeepAlive</key><true/>
+  <key>ThrottleInterval</key><integer>10</integer>
   <key>StandardOutPath</key><string>__HOME__/phone-farm/logs/web.log</string>
   <key>StandardErrorPath</key><string>__HOME__/phone-farm/logs/web.err.log</string>
 </dict>
