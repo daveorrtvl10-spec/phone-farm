@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.phonefarm.appium</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/zsh</string><string>-lc</string>
+    <string>cd $HOME/phone-farm &amp;&amp; exec npm run appium</string>
+  </array>
+  <key>WorkingDirectory</key><string>__HOME__/phone-farm</string>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <key>StandardOutPath</key><string>__HOME__/phone-farm/logs/appium.log</string>
+  <key>StandardErrorPath</key><string>__HOME__/phone-farm/logs/appium.err.log</string>
+</dict>
+</plist>

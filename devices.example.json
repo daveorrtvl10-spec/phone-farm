@@ -1,0 +1,11 @@
+[
+  {
+    "name": "Phone A",
+    "udid": "REPLACE-WITH-UDID-FROM: xcrun xctrace list devices",
+    "wdaLocalPort": 8100,
+    "mjpegLocalPort": 9100,
+    "coordinateProfile": "iphoneXsMax",
+    "passcode": "",
+    "pluginData": { "com.git-agni.tiktok": { "accounts": ["@handle"] } }
+  }
+]

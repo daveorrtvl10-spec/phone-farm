@@ -54,6 +54,48 @@ export const DEFAULT_COORDINATE_PROFILE = 'iphone8';
 // Add another named layout here, then set that key as coordinateProfile on
 // the matching devices.json entry. Devices without a key use iphone8.
 export const DEVICE_COORDINATES = {
+    // DERIVED, NOT MEASURED. 414x896 pt notched screen (Xs Max / XR / 11).
+    // Rules from iphone8 (375x667): bottom-anchored y += 195 (taller screen
+    // minus the 34pt home indicator); top-anchored y += 24 (status bar 44 vs
+    // 20); right-anchored x += 39; centred x = 207; picker cells are
+    // width/3 = 138. Verify on device and calibrate from the dashboard.
+    iphoneXsMax: {
+        displayName: 'iPhone Xs Max / XR / 11',
+        productTypes: ['iPhone11,4', 'iPhone11,6', 'iPhone11,8', 'iPhone12,1'],
+        screenSize: { width: 414, height: 896 },
+        passcodeKeypad: {
+            columnX: [117, 207, 297],
+            rowY: [290, 386, 482, 578],
+        },
+        tiktok: {
+            profileTab: { x: 373, y: 851 },
+            homeTab: { x: 41, y: 848 },
+            accountSwitcher: { x: 207, y: 182 },
+            create: { x: 207, y: 835 },
+            upload: { x: 33, y: 830 },
+            selectMultiple: { x: 24, y: 813 },
+            useLayout: { x: 24, y: 684 },
+            picker: {
+                circleX: 119,
+                columnStep: 138,
+                firstY: 512,
+                trayY: 384,
+                rowStep: 138,
+                cellX: 69,
+                cellStep: 138,
+                cellY: 557,
+            },
+            pickerNext: { x: 306, y: 812 },
+            editorNext: { x: 306, y: 832 },
+            caption: { x: 132, y: 260 },
+            keyboardBack: { x: 22, y: 66 },
+            draft: { x: 108, y: 825 },
+            finish: { x: 306, y: 825 },
+            like: { x: 384, y: 508 },
+            save: { x: 384, y: 639 },
+            swipe: { x: 207, startY: 700, endY: 250, durationMs: 450 },
+        },
+    },
     iphone8: {
         displayName: 'iPhone 8',
         productTypes: ['iPhone10,1', 'iPhone10,4'],
