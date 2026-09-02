@@ -54,7 +54,7 @@ export const DEFAULT_COORDINATE_PROFILE = 'iphone8';
 // Add another named layout here, then set that key as coordinateProfile on
 // the matching devices.json entry. Devices without a key use iphone8.
 export const DEVICE_COORDINATES = {
-    // DERIVED, NOT MEASURED. 414x896 pt notched screen (Xs Max / XR / 11).
+    // DERIVED from geometry, then corrected on a real Xs Max where noted. 414x896 pt notched screen (Xs Max / XR / 11).
     // Rules from iphone8 (375x667): bottom-anchored y += 195 (taller screen
     // minus the 34pt home indicator); top-anchored y += 24 (status bar 44 vs
     // 20); right-anchored x += 39; centred x = 207; picker cells are
@@ -68,10 +68,10 @@ export const DEVICE_COORDINATES = {
             rowY: [290, 386, 482, 578],
         },
         tiktok: {
-            profileTab: { x: 373, y: 851 },
-            homeTab: { x: 41, y: 848 },
-            accountSwitcher: { x: 207, y: 182 },
-            create: { x: 207, y: 835 },
+            profileTab: { x: 372, y: 840 },
+            homeTab: { x: 41, y: 840 },
+            accountSwitcher: { x: 72, y: 120 }, // measured 2026-09-02
+            create: { x: 207, y: 836 },
             upload: { x: 33, y: 830 },
             selectMultiple: { x: 24, y: 813 },
             useLayout: { x: 24, y: 684 },
@@ -91,8 +91,8 @@ export const DEVICE_COORDINATES = {
             keyboardBack: { x: 22, y: 66 },
             draft: { x: 108, y: 825 },
             finish: { x: 306, y: 825 },
-            like: { x: 384, y: 508 },
-            save: { x: 384, y: 639 },
+            like: { x: 381, y: 473 },
+            save: { x: 383, y: 603 },
             swipe: { x: 207, startY: 700, endY: 250, durationMs: 450 },
         },
     },

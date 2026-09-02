@@ -15,13 +15,13 @@ export const DEVICE_COORDINATES = {
     iphoneXsMax: {
         passcodeKeypad: { columnX: [117, 207, 297], rowY: [290, 386, 482, 578] },
         tiktok: {
-            profileTab: { x: 373, y: 851 }, homeTab: { x: 41, y: 848 }, accountSwitcher: { x: 207, y: 182 },
-            create: { x: 207, y: 835 }, upload: { x: 33, y: 830 }, selectMultiple: { x: 24, y: 813 },
+            profileTab: { x: 372, y: 840 }, homeTab: { x: 41, y: 840 }, accountSwitcher: { x: 72, y: 120 },
+            create: { x: 207, y: 836 }, upload: { x: 33, y: 830 }, selectMultiple: { x: 24, y: 813 },
             useLayout: { x: 24, y: 684 },
             picker: { circleX: 119, columnStep: 138, firstY: 512, trayY: 384, rowStep: 138, cellX: 69, cellStep: 138, cellY: 557 },
             pickerNext: { x: 306, y: 812 }, editorNext: { x: 306, y: 832 }, caption: { x: 132, y: 260 },
             keyboardBack: { x: 22, y: 66 }, draft: { x: 108, y: 825 }, finish: { x: 306, y: 825 },
-            like: { x: 384, y: 508 }, save: { x: 384, y: 639 }, swipe: { x: 207, startY: 700, endY: 250, durationMs: 450 },
+            like: { x: 381, y: 473 }, save: { x: 383, y: 603 }, swipe: { x: 207, startY: 700, endY: 250, durationMs: 450 },
         },
     },
     iphone8: {

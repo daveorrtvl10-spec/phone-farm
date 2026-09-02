@@ -28,7 +28,7 @@ xcodebuild -runFirstLaunch
 ```sh
 git clone https://github.com/daveorrtvl10-spec/phone-farm.git ~/phone-farm
 cd ~/phone-farm
-cp mac/env.example .env      # already filled: team ID, WDA bundle id, DB creds
+cp mac/env.example .env      # filled: team ID, WDA bundle id, DB creds, Xcode path
 npm install
 npm run appium:install-driver
 ```

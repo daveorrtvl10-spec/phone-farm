@@ -148,14 +148,6 @@ function interactionPauseMs(): number {
     return Math.round(200 + Math.random() * 400);
 }
 
-async function doubleTapCoordinate(driver: Browser, x: number, y: number, label: string): Promise<void> {
-    await tapCoordinate(driver, x, y, label);
-    // Short, fixed gap so TikTok's gesture recognizer reads this as a
-    // double-tap-to-like rather than two separate taps.
-    await driver.pause(130);
-    await tapCoordinate(driver, x, y, label);
-}
-
 let driver: Browser | undefined;
 let videosViewed = 0;
 let swipes = 0;
@@ -224,7 +216,9 @@ try {
         if (likeEnabled && decideLike(profile)) {
             await cancellableDelay(clampToDeadline(Date.now(), deadline, interactionPauseMs()));
             if (stopRequested || !hasTimeRemaining(Date.now(), deadline)) break;
-            await doubleTapCoordinate(driver, likeX, likeY, 'Like');
+            // Single tap on the heart button. A double tap here toggles the like
+            // straight back off (verified on device 2026-09-02: 0 likes after a run).
+            await tapCoordinate(driver, likeX, likeY, 'Like');
             likes += 1;
         }
         if (stopRequested || !hasTimeRemaining(Date.now(), deadline)) break;
