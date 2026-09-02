@@ -90,6 +90,42 @@ async function openComposer(
     await driver.pause(2500);
 }
 
+// Springboard/Music etc. mean activateApp did not take (seen live right after
+// a terminateApp). Re-activate rather than tapping into whatever is showing.
+async function requireTikTokInFront(driver: Browser, remote: WdaRemoteControl, udid: string, bundleId: string): Promise<void> {
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+        const words = await screenWords(remote, udid);
+        const tiktokTabs = ['home', 'friends', 'inbox', 'profile'].filter((tab) => has(words, new RegExp(`^${tab}$`, 'i'))).length;
+        if (tiktokTabs >= 2 || identifyScreen(words) !== 'unknown') return;
+        console.log(`TikTok not in front (attempt ${attempt}); re-activating`);
+        await driver.activateApp(bundleId);
+        await driver.pause(5000);
+    }
+    throw new Error('TikTok did not come to the foreground after activateApp');
+}
+
+const UPLOAD_ATTEMPTS = 3;
+
+// On a cold start the camera can still be initialising when the first Upload
+// tap lands (seen live: screen unchanged, still showing the mode strip). Read
+// the screen and re-tap until the picker is up.
+async function openPicker(
+    driver: Browser, remote: WdaRemoteControl, udid: string, coordinates: TikTokCoordinates['tiktok'],
+): Promise<void> {
+    for (let attempt = 1; attempt <= UPLOAD_ATTEMPTS; attempt += 1) {
+        const screen = identifyScreen(await screenWords(remote, udid));
+        if (screen === 'picker') return;
+        if (screen !== 'camera' && attempt === 1) {
+            console.log(`Expected the camera after Create but saw ${screen}; waiting`);
+            await driver.pause(2500);
+            continue;
+        }
+        await tapCoordinate(driver, coordinates.upload.x, coordinates.upload.y, `Upload (retry ${attempt})`);
+        await driver.pause(3500);
+    }
+    await requireScreen(remote, udid, 'picker', 'Opening the photo picker');
+}
+
 const CHECKBOX_RETRY_ATTEMPTS = 3;
 
 // TikTok's Photos picker checkboxes ("Select multiple", "Use layout") are
@@ -124,7 +160,7 @@ async function chooseRecentMedia(
     coordinates: TikTokCoordinates['tiktok'],
 ): Promise<void> {
     const latestIndex = assetCount - 1;
-    await requireScreen(remote, udid, 'picker', 'Opening the photo picker');
+    await openPicker(driver, remote, udid, coordinates);
     if (count > 1) {
         await ensureCheckboxState(driver, remote, udid, {
             x: coordinates.selectMultiple.x,
@@ -171,7 +207,7 @@ function has(words: OcrWord[], pattern: RegExp): boolean {
 // buttons (Next, Post) or the icon+label Drafts button, so those are tapped at
 // profile coordinates and the *screen* is identified by its other labels.
 // Mapped live on an Xs Max, TikTok Sept 2026.
-type PostScreen = 'picker' | 'preview' | 'editor' | 'form' | 'captionEditor' | 'unknown';
+type PostScreen = 'camera' | 'picker' | 'preview' | 'editor' | 'form' | 'captionEditor' | 'unknown';
 function identifyScreen(words: OcrWord[]): PostScreen {
     const location = has(words, /^location$/i);
     const share = has(words, /^share$/i);
@@ -180,7 +216,10 @@ function identifyScreen(words: OcrWord[]): PostScreen {
     if (catchy && has(words, /^\d+\/4000$/)) return 'captionEditor'; // full-screen text editor
     if (has(words, /^recents$/i) || (has(words, /^select$/i) && has(words, /^multiple$/i))) return 'picker';
     if (has(words, /^autocut$/i)) return 'preview';             // single-photo full-screen preview
-    if (has(words, /^sound$/i) || has(words, /^story$/i)) return 'editor';
+    // The camera also shows "Add sound"; its mode strip (CAMERA / PHOTO / CREATE
+    // / POST) is what distinguishes it from the editor ("Your Story" + Next).
+    if (has(words, /^(camera|create|post)$/) ) return 'camera';
+    if (has(words, /^story$/i) || has(words, /^sound$/i)) return 'editor';
     return 'unknown';
 }
 
@@ -336,9 +375,10 @@ for (let attempt = 1; attempt <= REACH_CAPTION_SCREEN_ATTEMPTS && !reachedCaptio
         // activateApp alone resumes whatever modal TikTok was left in (a draft
         // form, a picker) where the tab bar does not exist.
         await driver.terminateApp(bundleId).catch(() => {});
-        await driver.pause(1000);
+        await driver.pause(2500);
         await driver.activateApp(bundleId);
-        await driver.pause(5000);
+        await driver.pause(6000);
+        await requireTikTokInFront(driver, deviceRemote, manifest.device.udid, bundleId);
         if (switchAccountName) {
             console.log(`Switching to TikTok account "${switchAccountName}"`);
             await switchTikTokAccount(driver, deviceRemote, manifest.device.udid, switchAccountName, accountSwitchCoords);

@@ -51,9 +51,24 @@ export async function swipeCoordinate(
 // Labels of buttons that dismiss the interstitials a fresh account keeps
 // throwing up: iOS permission prompts, onboarding ("Select interests" →
 // Skip), leftover pickers (Cancel), promos (Not now / Close). Seen live.
-const DISMISS_PATTERNS: RegExp[] = [/^skip$/i, /^cancel$/i, /^not$/i, /^don[’']t$/i, /^close$/i, /^later$/i, /^dismiss$/i];
+// Whole-button labels only. Partial words ("Not" from "Not now") matched Apple
+// Music's "Not Playing" bar and tapped the phone out of TikTok (seen live).
+const DISMISS_PATTERNS: RegExp[] = [/^skip$/i, /^cancel$/i, /^close$/i, /^later$/i, /^dismiss$/i];
+
+function tiktokChromeVisible(words: OcrWord[]): boolean {
+    const tabs = ['home', 'friends', 'inbox', 'profile'];
+    return tabs.filter((tab) => words.some((word) => word.text.trim().toLowerCase() === tab)).length >= 2;
+}
 
 async function dismissInterstitial(driver: Browser, words: OcrWord[], scale: number): Promise<boolean> {
+    // Two-word "Not now" / "Don't allow": accept only when both halves are on one line.
+    const twoWord = words.find((word) => /^(not|don[’']t)$/i.test(word.text.trim())
+        && words.some((next) => /^(now|allow)$/i.test(next.text.trim()) && Math.abs(next.y - word.y) < word.height && next.x > word.x && next.x - word.x < word.width * 4));
+    if (twoWord) {
+        const point = pointFromWord(twoWord, scale);
+        await tapCoordinate(driver, point.x, point.y, `dismiss "${twoWord.text} …"`);
+        return true;
+    }
     for (const pattern of DISMISS_PATTERNS) {
         const match = words.find((word) => pattern.test(word.text.trim()));
         if (!match) continue;
@@ -132,7 +147,11 @@ export async function switchTikTokAccount(
             // pickers); otherwise TikTok's first-run "Swipe up for more"
             // overlay and similar feed promos swallow tab-bar taps until the
             // user swipes. All seen live.
-            if (!(await dismissInterstitial(driver, profileWords, scale))) {
+            if (!tiktokChromeVisible(profileWords) && !profilePageIsOpen(profileWords)) {
+                // Not even TikTok's tab bar: a system prompt or another app.
+                // Try a dismiss; never swipe or tap around in a foreign app.
+                if (!(await dismissInterstitial(driver, profileWords, scale))) console.log('TikTok chrome not visible; retrying Profile tab');
+            } else if (!(await dismissInterstitial(driver, profileWords, scale))) {
                 await swipeCoordinate(driver, coords.swipe, 'feed to clear overlays');
             }
             await driver.pause(1500);
