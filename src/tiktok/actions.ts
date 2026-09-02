@@ -126,9 +126,21 @@ export async function switchTikTokAccount(
         throw new Error(`Could not find TikTok account "${targetHandle}" in the account switcher. OCR saw: ${seen}`);
     }
     const targetPoint = pointFromWord(targetMatch, scale);
+    // Handles in the switcher sheet render as "@name". If the sheet lists only
+    // the target, the phone is signed into exactly one account and the
+    // post-switch profile reread (small grey text, often hidden by tooltips
+    // such as "What's up?" — seen live) cannot tell us anything more.
+    const listedHandles = switcherWords.filter((word) => word.text.trim().startsWith('@'));
+    const soleAccount = listedHandles.length === 1 && listedHandles[0] === targetMatch;
     await tapCoordinate(driver, targetPoint.x, targetPoint.y, `Account row for ${targetHandle}`);
     // TikTok fully reloads app state after switching accounts.
     await driver.pause(4000);
+    if (soleAccount) {
+        await tapCoordinate(driver, coords.profileTabX, coords.profileTabY, 'Profile tab (verify)');
+        await driver.pause(1000);
+        console.log(`Confirmed active TikTok account: ${targetHandle} (only account on this device)`);
+        return;
+    }
 
     await tapCoordinate(driver, coords.profileTabX, coords.profileTabY, 'Profile tab (verify)');
     await driver.pause(1000);
