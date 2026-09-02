@@ -101,7 +101,14 @@ function bestMatches(
     return matches.sort((left, right) => right.score - left.score).slice(0, 30);
 }
 
-export async function detectEngagementControls(screenshot: Buffer, scale: number): Promise<EngagementControls | undefined> {
+/**
+ * @param expectedSeparation Heart-to-bookmark distance in points from the device's
+ * coordinate profile. The rail spacing is fixed per layout, not per screen height:
+ * ~131pt on 375x667 and ~134pt on 414x896. A screen-height window let a
+ * 177pt mismatch through on the Xs Max (2026-09-02), so matches are accepted
+ * only within ±20% of the profile's own gap.
+ */
+export async function detectEngagementControls(screenshot: Buffer, scale: number, expectedSeparation?: number): Promise<EngagementControls | undefined> {
     const { data, info } = await sharp(screenshot).raw().ensureAlpha().toBuffer({ resolveWithObject: true });
     const image: PixelImage = { data, width: info.width, height: info.height, channels: info.channels };
     const pixels = iconIntensity(image);
@@ -117,7 +124,10 @@ export async function detectEngagementControls(screenshot: Buffer, scale: number
         for (const bookmark of bookmarks) {
             const separation = bookmark.y - heart.y;
             if (Math.abs(bookmark.x - heart.x) > 24 * scale) continue;
-            if (separation < image.height * 0.14 || separation > image.height * 0.25) continue;
+            const [minSeparation, maxSeparation] = expectedSeparation
+                ? [expectedSeparation * scale * 0.8, expectedSeparation * scale * 1.2]
+                : [image.height * 0.14, image.height * 0.25];
+            if (separation < minSeparation || separation > maxSeparation) continue;
             const confidence = Math.min(heart.score, bookmark.score);
             if (!best || confidence > best.confidence) best = { heart, bookmark, confidence };
         }

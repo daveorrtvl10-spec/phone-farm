@@ -134,6 +134,7 @@ async function chooseRecentMedia(
             firstY: coordinates.picker.firstY,
             trayY: coordinates.picker.trayY,
             rowStep: coordinates.picker.rowStep,
+            newestFirst: coordinates.picker.newestFirst,
         });
         for (const [selection, { x, y }] of targets.entries()) {
             await tapCoordinate(driver, x, y, `media ${selection + 1}/${count}`);
@@ -144,7 +145,7 @@ async function chooseRecentMedia(
             y: coordinates.useLayout.y,
         }, 'Use layout', false);
     } else {
-        const column = latestIndex % 3;
+        const column = coordinates.picker.newestFirst ? 0 : latestIndex % 3;
         const x = coordinates.picker.cellX + (column * coordinates.picker.cellStep);
         await tapCoordinate(driver, x, coordinates.picker.cellY, 'media 1/1');
         await driver.pause(1000);

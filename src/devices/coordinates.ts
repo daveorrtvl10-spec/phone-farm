@@ -31,6 +31,7 @@ export interface DeviceCoordinates {
             cellX: number;
             cellStep: number;
             cellY: number;
+            newestFirst?: boolean;
         };
         pickerNext: Point;
         editorNext: Point;
@@ -54,7 +55,9 @@ export const DEFAULT_COORDINATE_PROFILE = 'iphone8';
 // Add another named layout here, then set that key as coordinateProfile on
 // the matching devices.json entry. Devices without a key use iphone8.
 export const DEVICE_COORDINATES = {
-    // DERIVED from geometry, then corrected on a real Xs Max where noted. 414x896 pt notched screen (Xs Max / XR / 11).
+    // Every single-point target below was measured on a real Xs Max via the
+    // dashboard calibration on 2026-09-02 (incl. keyboardBack). The
+    // picker grid and passcode keypad are still DERIVED from iphone8. 414x896 pt notched screen (Xs Max / XR / 11).
     // Rules from iphone8 (375x667): bottom-anchored y += 195 (taller screen
     // minus the 34pt home indicator); top-anchored y += 24 (status bar 44 vs
     // 20); right-anchored x += 39; centred x = 207; picker cells are
@@ -68,31 +71,35 @@ export const DEVICE_COORDINATES = {
             rowY: [290, 386, 482, 578],
         },
         tiktok: {
-            profileTab: { x: 372, y: 840 },
-            homeTab: { x: 41, y: 840 },
-            accountSwitcher: { x: 72, y: 120 }, // measured 2026-09-02
-            create: { x: 207, y: 836 },
-            upload: { x: 33, y: 830 },
-            selectMultiple: { x: 24, y: 813 },
-            useLayout: { x: 24, y: 684 },
+            profileTab: { x: 361, y: 839 },
+            homeTab: { x: 40, y: 841 },
+            accountSwitcher: { x: 102, y: 121 },
+            create: { x: 205, y: 834 },
+            upload: { x: 28, y: 830 },
+            selectMultiple: { x: 49, y: 834 },
+            useLayout: { x: 41, y: 701 },
             picker: {
-                circleX: 119,
+                // Measured from the live picker 2026-09-02: 3 cols of 138pt, grid
+                // starts directly under the Recents tabs, newest asset top-left.
+                // Verified: the grid does not shift when the selection tray appears, so trayY = firstY.
+                circleX: 120,
                 columnStep: 138,
-                firstY: 512,
-                trayY: 384,
+                firstY: 153,
+                trayY: 153,
                 rowStep: 138,
                 cellX: 69,
                 cellStep: 138,
-                cellY: 557,
+                cellY: 206,
+                newestFirst: true,
             },
-            pickerNext: { x: 306, y: 812 },
-            editorNext: { x: 306, y: 832 },
-            caption: { x: 132, y: 260 },
-            keyboardBack: { x: 22, y: 66 },
-            draft: { x: 108, y: 825 },
-            finish: { x: 306, y: 825 },
-            like: { x: 381, y: 473 },
-            save: { x: 383, y: 603 },
+            pickerNext: { x: 295, y: 845 },
+            editorNext: { x: 299, y: 830 },
+            caption: { x: 66, y: 119 },
+            keyboardBack: { x: 28, y: 62 },
+            draft: { x: 111, y: 830 },
+            finish: { x: 309, y: 826 },
+            like: { x: 382, y: 470 },
+            save: { x: 383, y: 602 },
             swipe: { x: 207, startY: 700, endY: 250, durationMs: 450 },
         },
     },

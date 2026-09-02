@@ -194,7 +194,7 @@ try {
             remoteControl.getScreenshot(udid),
             remoteControl.getScreenInfo(udid),
         ]);
-        const detected = await detectEngagementControls(screenshot, screen.scale);
+        const detected = await detectEngagementControls(screenshot, screen.scale, saveY - likeY);
         if (detected) {
             ({ x: likeX, y: likeY } = detected.like);
             ({ x: saveX, y: saveY } = detected.save);
