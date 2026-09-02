@@ -432,6 +432,7 @@ export class DeviceRegistrationService implements DeviceRegistrationManager {
                 profileTabY: coordinates.profileTab.y,
                 switcherTriggerX: coordinates.accountSwitcher.x,
                 switcherTriggerY: coordinates.accountSwitcher.y,
+                swipe: coordinates.swipe,
             };
             if (session.tiktokAccounts.length) {
                 for (const account of session.tiktokAccounts) {

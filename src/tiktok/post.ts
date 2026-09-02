@@ -248,6 +248,7 @@ const accountSwitchCoords = {
     profileTabY: tiktokCoordinates.profileTab.y,
     switcherTriggerX: tiktokCoordinates.accountSwitcher.x,
     switcherTriggerY: tiktokCoordinates.accountSwitcher.y,
+    swipe: tiktokCoordinates.swipe,
 };
 // Fail fast, before unlocking or launching TikTok, if the requested account
 // isn't one this device is registered for.

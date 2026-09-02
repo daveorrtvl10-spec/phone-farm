@@ -64,6 +64,7 @@ const accountSwitchCoords = {
     profileTabY: tiktokCoordinates.profileTab.y,
     switcherTriggerX: tiktokCoordinates.accountSwitcher.x,
     switcherTriggerY: tiktokCoordinates.accountSwitcher.y,
+    swipe: tiktokCoordinates.swipe,
 };
 // switchTikTokAccount ends on the Profile tab (it re-checks there to verify
 // the switch). The scroll loop below expects the Home feed, so only

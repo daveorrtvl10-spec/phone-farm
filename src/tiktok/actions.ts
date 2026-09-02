@@ -26,6 +26,26 @@ export interface AccountSwitchCoords {
     profileTabY: number;
     switcherTriggerX: number;
     switcherTriggerY: number;
+    /** Feed swipe vector, used to clear tap-swallowing overlays before retrying. */
+    swipe: { x: number; startY: number; endY: number; durationMs: number };
+}
+
+export async function swipeCoordinate(
+    driver: Browser, swipe: { x: number; startY: number; endY: number; durationMs: number }, label: string,
+): Promise<void> {
+    await driver.performActions([{
+        type: 'pointer',
+        id: 'finger',
+        parameters: { pointerType: 'touch' },
+        actions: [
+            { type: 'pointerMove', duration: 0, x: swipe.x, y: swipe.startY },
+            { type: 'pointerDown', button: 0 },
+            { type: 'pointerMove', duration: swipe.durationMs, x: swipe.x, y: swipe.endY },
+            { type: 'pointerUp', button: 0 },
+        ],
+    }]);
+    await driver.releaseActions();
+    console.log(`Swiped ${label}`);
 }
 
 // The profile header always carries the Following / Followers / Likes row.
@@ -74,6 +94,12 @@ export async function switchTikTokAccount(
             return;
         }
         onProfile = profilePageIsOpen(profileWords);
+        if (!onProfile && attempt < MAX_PROFILE_TAB_ATTEMPTS) {
+            // TikTok's first-run "Swipe up for more" overlay (seen live) and
+            // similar feed promos swallow tab-bar taps until the user swipes.
+            await swipeCoordinate(driver, coords.swipe, 'feed to clear overlays');
+            await driver.pause(1500);
+        }
     }
     if (!onProfile) {
         const seen = profileWords.map((word) => word.text).join(', ') || '(nothing recognized)';
