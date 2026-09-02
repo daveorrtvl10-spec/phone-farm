@@ -224,7 +224,10 @@ try {
         console.log(`Engagement control detection failed; using profile coordinates: ${error instanceof Error ? error.message : String(error)}`);
     }
 
-    const deadline = Date.now() + durationMinutes * 60_000;
+    // Nobody scrolls for exactly the booked minutes: ±20% per session.
+    const jitteredMinutes = durationMinutes * (0.8 + Math.random() * 0.4);
+    console.log(`Session length ${jitteredMinutes.toFixed(1)} min (booked ${durationMinutes})`);
+    const deadline = Date.now() + jitteredMinutes * 60_000;
     const sessionStart = Date.now();
     const seedOffset = Math.floor(Math.random() * Math.max(1, seedTerms.length));
     let followedLast = false;
@@ -352,6 +355,13 @@ try {
         await remoteControl.performAction(udid, { type: 'home' }).catch((error: unknown) => {
             console.log(`Could not press Home at session end: ${error instanceof Error ? error.message : String(error)}`);
         });
+        await new Promise((resolve) => setTimeout(resolve, 800));
+        // …and the screen goes dark, like a phone that was put down. No passcode,
+        // so the next session's unlock is a wake + swipe.
+        await remoteControl.performAction(udid, { type: 'lock' }).catch((error: unknown) => {
+            console.log(`Could not lock at session end: ${error instanceof Error ? error.message : String(error)}`);
+        });
+        console.log('Session ended: Home + lock');
         await driver.deleteSession();
     }
 }
