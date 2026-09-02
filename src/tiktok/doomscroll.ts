@@ -179,7 +179,12 @@ try {
     });
 
     await driver.updateSettings({ defaultActiveApplication: tiktokBundleId });
-    await driver.pause(3000);
+    // Cold start: see post.ts — a resumed TikTok may be inside a modal with no
+    // tab bar, and a torn-down session leaves the phone on the home screen.
+    await driver.terminateApp(tiktokBundleId).catch(() => {});
+    await driver.pause(1000);
+    await driver.activateApp(tiktokBundleId);
+    await driver.pause(5000);
 
     if (switchAccountName) {
         console.log(`Switching to TikTok account "${switchAccountName}"`);

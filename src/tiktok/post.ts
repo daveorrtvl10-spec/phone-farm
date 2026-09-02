@@ -330,12 +330,15 @@ for (let attempt = 1; attempt <= REACH_CAPTION_SCREEN_ATTEMPTS && !reachedCaptio
     try {
         driver = await remote({ hostname: process.env.APPIUM_HOST ?? '127.0.0.1', port: positiveInteger('APPIUM_PORT', 4725), path: '/', logLevel: 'info', connectionRetryCount: 0, connectionRetryTimeout: 180000, capabilities });
         await driver.updateSettings({ defaultActiveApplication: bundleId });
-        // Foreground TikTok before any tap. Seen live: the phone was sitting on
-        // an Apple Music welcome screen, so the Profile-tab tap landed in the
-        // wrong app and the account check failed twice before a retry happened
-        // to find TikTok in front.
+        // Cold-start TikTok so every run begins on the For You feed. Seen live:
+        // ending a session leaves the phone on the iOS home screen (the Profile
+        // tab coordinate then opens Apple Music from the dock), and an
+        // activateApp alone resumes whatever modal TikTok was left in (a draft
+        // form, a picker) where the tab bar does not exist.
+        await driver.terminateApp(bundleId).catch(() => {});
+        await driver.pause(1000);
         await driver.activateApp(bundleId);
-        await driver.pause(2500);
+        await driver.pause(5000);
         if (switchAccountName) {
             console.log(`Switching to TikTok account "${switchAccountName}"`);
             await switchTikTokAccount(driver, deviceRemote, manifest.device.udid, switchAccountName, accountSwitchCoords);

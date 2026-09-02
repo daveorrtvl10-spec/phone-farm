@@ -638,7 +638,7 @@ elements.postForm.addEventListener('submit', async (event) => {
     event.preventDefault();
     const destination = selectedDestination();
     if (orderedMedia.length === 0) { elements.postResult.textContent = 'Choose media first.'; return; }
-    if (orderedMedia.length > 3) { elements.postResult.textContent = 'Choose no more than three slideshow images.'; return; }
+    if (orderedMedia.length > 12) { elements.postResult.textContent = 'Choose no more than 12 slideshow images.'; return; }
     const videos = orderedMedia.filter(({ type }) => type.startsWith('video/'));
     const images = orderedMedia.filter(({ type }) => type.startsWith('image/'));
     if (!((videos.length === 1 && orderedMedia.length === 1) || images.length === orderedMedia.length)) {

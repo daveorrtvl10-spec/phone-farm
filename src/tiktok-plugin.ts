@@ -22,6 +22,12 @@ type DoomscrollPayload = JsonObject & {
     account?: string;
 };
 
+// TikTok accepts up to 35 slideshow images, but the picker taps are grid
+// math over the visible rows: on the measured layouts 4 rows × 3 columns fit
+// above the selection tray without scrolling. Raise this only together with
+// grid scrolling in src/tiktok/post-layout.ts.
+export const MAX_POST_MEDIA = 12;
+
 type PostMedia = JsonObject & {
     assetId: string;
     name: string;
@@ -94,8 +100,8 @@ function createPostTask(configuration: TikTokPluginConfiguration): TaskDefinitio
         type: 'post', version: 1, displayName: 'TikTok post',
         validate(value, context) {
             const input = objectPayload(value);
-            if (!Array.isArray(input.media) || input.media.length < 1 || input.media.length > 3) {
-                throw new Error('Choose one to three media files');
+            if (!Array.isArray(input.media) || input.media.length < 1 || input.media.length > MAX_POST_MEDIA) {
+                throw new Error(`Choose one to ${MAX_POST_MEDIA} media files`);
             }
             const media = input.media.map((item) => {
                 const candidate = objectPayload(item);
@@ -240,7 +246,7 @@ export function createTikTokPlugin(configuration: TikTokPluginConfiguration = {}
                         if (part.file.truncated) throw new Error(`${name} exceeds the upload limit`);
                         files.push({ path: filePath, name, mimeType: part.mimetype });
                     }
-                    if (files.length < 1 || files.length > 3) throw new Error('Choose one to three media files');
+                    if (files.length < 1 || files.length > MAX_POST_MEDIA) throw new Error(`Choose one to ${MAX_POST_MEDIA} media files`);
                     const videos = files.filter(({ mimeType }) => mimeType.startsWith('video/'));
                     const images = files.filter(({ mimeType }) => mimeType.startsWith('image/'));
                     if (!((videos.length === 1 && files.length === 1) || images.length === files.length)) {
