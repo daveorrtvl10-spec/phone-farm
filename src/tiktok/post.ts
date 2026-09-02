@@ -6,7 +6,7 @@ import { loadRegisteredDevices, resolveDeviceCoordinates, WdaRemoteControl } fro
 import type { PostManifest } from './post-manifest.js';
 import { type TikTokCoordinates } from './coordinates.js';
 import { coordinateProfile, registeredAccounts } from './runtime-settings.js';
-import { switchTikTokAccount, tapCoordinate } from './actions.js';
+import { switchTikTokAccount, swipeCoordinate, tapCoordinate } from './actions.js';
 import { recentPickerTargets } from './post-layout.js';
 import { isRedCheckboxChecked } from './pixel.js';
 import { recognizeWords, type OcrWord } from './ocr.js';
@@ -131,7 +131,15 @@ async function openPicker(
     driver: Browser, remote: WdaRemoteControl, udid: string, coordinates: TikTokCoordinates['tiktok'],
 ): Promise<void> {
     for (let attempt = 1; attempt <= UPLOAD_ATTEMPTS; attempt += 1) {
-        const screen = identifyScreen(await screenWords(remote, udid));
+        let words = await screenWords(remote, udid);
+        let screen = identifyScreen(words);
+        // A sheet mid-animation reads as nothing at all (seen live: the picker
+        // was open a moment later). Never act on a blank read — look again.
+        for (let reread = 0; reread < 2 && words.length < 3; reread += 1) {
+            await driver.pause(2000);
+            words = await screenWords(remote, udid);
+            screen = identifyScreen(words);
+        }
         if (screen === 'picker') return;
         if (screen !== 'camera') {
             // Not the camera: usually a promo or prompt over the feed/camera
@@ -187,6 +195,18 @@ async function chooseRecentMedia(
 ): Promise<void> {
     const latestIndex = assetCount - 1;
     await openPicker(driver, remote, udid, coordinates);
+    // The picker remembers its scroll offset between sessions (seen live);
+    // cell 0 must be the newest asset, so drag the grid back to the top.
+    await swipeCoordinate(driver, { x: 207, startY: 300, endY: 750, durationMs: 350 }, 'picker grid to top');
+    await driver.pause(1200);
+    if (count === 1) {
+        // "Select multiple" persists too; with it on, a single tap only ticks
+        // the cell instead of opening the preview.
+        await ensureCheckboxState(driver, remote, udid, {
+            x: coordinates.selectMultiple.x,
+            y: coordinates.selectMultiple.y,
+        }, 'Select multiple', false);
+    }
     if (count > 1) {
         await ensureCheckboxState(driver, remote, udid, {
             x: coordinates.selectMultiple.x,
