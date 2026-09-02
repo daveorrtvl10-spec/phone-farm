@@ -28,6 +28,12 @@ export interface AccountSwitchCoords {
     switcherTriggerY: number;
 }
 
+// The profile header always carries the Following / Followers / Likes row.
+export function profilePageIsOpen(words: OcrWord[]): boolean {
+    const seen = new Set(words.map((word) => word.text.trim().toLowerCase()));
+    return ['following', 'followers'].every((label) => seen.has(label));
+}
+
 function switcherIsOpen(words: OcrWord[]): boolean {
     return words.some((word) => word.text.trim().toLowerCase() === 'switch');
 }
@@ -46,20 +52,32 @@ export async function switchTikTokAccount(
     targetHandle: string,
     coords: AccountSwitchCoords,
 ): Promise<void> {
-    await tapCoordinate(driver, coords.profileTabX, coords.profileTabY, 'Profile tab');
-    // Longer than the other settle pauses here: a fresh app launch can pop
-    // up a transient tooltip/announcement bubble over the profile header
-    // (seen live — different text each time, e.g. "What's good?", a
-    // "Whisper" feature prompt), and it needs time to appear and, in some
-    // cases, auto-dismiss before it stops intercepting taps in that area.
-    await driver.pause(2000);
-
     const { scale } = await remote.getScreenInfo(udid);
-    const profileWords = await recognizeWords(await remote.getScreenshot(udid));
-
-    if (findHandleMatch(profileWords, targetHandle)) {
-        console.log(`Already on TikTok account ${targetHandle}`);
-        return;
+    // Reach the Profile page before anything else. A single tab tap is not
+    // enough on a live feed: promos/overlays ("56.3B post views here — Explore
+    // now", seen live) swallow the first tap, and the old flow then hammered
+    // the account-switcher coordinate on the feed where it can never open.
+    const MAX_PROFILE_TAB_ATTEMPTS = 3;
+    let profileWords: OcrWord[] = [];
+    let onProfile = false;
+    for (let attempt = 1; attempt <= MAX_PROFILE_TAB_ATTEMPTS && !onProfile; attempt += 1) {
+        await tapCoordinate(driver, coords.profileTabX, coords.profileTabY, `Profile tab (attempt ${attempt})`);
+        // Longer than the other settle pauses here: a fresh app launch can pop
+        // up a transient tooltip/announcement bubble over the profile header
+        // (seen live — different text each time, e.g. "What's good?", a
+        // "Whisper" feature prompt), and it needs time to appear and, in some
+        // cases, auto-dismiss before it stops intercepting taps in that area.
+        await driver.pause(2000);
+        profileWords = await recognizeWords(await remote.getScreenshot(udid));
+        if (findHandleMatch(profileWords, targetHandle)) {
+            console.log(`Already on TikTok account ${targetHandle}`);
+            return;
+        }
+        onProfile = profilePageIsOpen(profileWords);
+    }
+    if (!onProfile) {
+        const seen = profileWords.map((word) => word.text).join(', ') || '(nothing recognized)';
+        throw new Error(`Could not reach the TikTok Profile page after ${MAX_PROFILE_TAB_ATTEMPTS} taps. OCR saw: ${seen}`);
     }
 
     const MAX_SWITCHER_OPEN_ATTEMPTS = 4;
