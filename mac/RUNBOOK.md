@@ -68,5 +68,26 @@ Tell me once a device is registered and a `doomscroll` task ran. From then on th
 loop is: I push, you `git pull && mac/install-agents.sh`.
 
 ## Known limits (to fix on our fork)
-- `post` accepts **1–3 media files**. Slideshows need more → raise the cap.
+- `post` accepts 1–12 media files (grid math without scrolling).
 - Dashboard is localhost-only by design. Don't change `WEB_HOST` without an auth plugin.
+
+
+## 7. Operator access from the VPS (how Claude drives it)
+Two reverse tunnels from the Mac, kept open in one Terminal tab (or the launchd
+agent below):
+```sh
+ssh -N -R 3000:127.0.0.1:3000 -R 2222:127.0.0.1:22 j2roberts@152.53.166.111
+```
+- `3000` exposes the dashboard API to the VPS (screenshots, taps, posts, logs).
+- `2222` exposes the Mac's SSH (Remote Login must be on) so the VPS can
+  `git pull` and restart the worker without you.
+Node is installed via nvm, so non-interactive shells need
+`export PATH=$HOME/.nvm/versions/node/v24.0.1/bin:$PATH` before `npm`.
+
+## Known TikTok variants (all handled in code, Sept 2026)
+- Camera: CAMERA-mode (Upload bottom-left) vs POST-mode (Upload bottom-right).
+- Picker: oldest-first, opens at the bottom; Next button width varies.
+- Post form: single-photo (full-screen description editor) vs slideshow
+  (inline keyboard; the top-left arrow leaves the form — don't tap it).
+- Interstitials: "Swipe up for more", contacts prompt, avatar promo, passkey sheet,
+  header tooltips. Turn TikTok → Settings → Privacy → Sync contacts OFF.
