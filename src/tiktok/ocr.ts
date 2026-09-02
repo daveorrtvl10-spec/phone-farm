@@ -57,11 +57,43 @@ function normalizeHandle(handle: string): string {
 // length-ratio guard keeps it from also matching short garbage tokens
 // (misread icons/glyphs, e.g. a lone "o") against any longer target — every
 // short string is trivially a substring of a long one.
+function editDistance(a: string, b: string): number {
+    const previous = Array.from({ length: b.length + 1 }, (_, index) => index);
+    for (let i = 1; i <= a.length; i += 1) {
+        let diagonal = previous[0]!;
+        previous[0] = i;
+        for (let j = 1; j <= b.length; j += 1) {
+            const temp = previous[j]!;
+            previous[j] = Math.min(previous[j]! + 1, previous[j - 1]! + 1, diagonal + (a[i - 1] === b[j - 1] ? 0 : 1));
+            diagonal = temp;
+        }
+    }
+    return previous[b.length]!;
+}
+
+// Handles of 6+ chars tolerate one substituted/dropped/inserted character per
+// 6 characters of length. Small-font grey handles routinely come back with a
+// single confusable glyph (seen live: "@danieuam4s5" read as "@danievam4s5").
+export function handleEditTolerance(target: string): number {
+    return target.length >= 6 ? Math.floor(target.length / 6) : 0;
+}
+
 export function findHandleMatch(words: OcrWord[], targetHandle: string): OcrWord | undefined {
     const target = normalizeHandle(targetHandle);
     if (!target) return undefined;
     const exact = words.find((word) => normalizeHandle(word.text) === target);
     if (exact) return exact;
+    const tolerance = handleEditTolerance(target);
+    const near = tolerance > 0
+        ? words.find((word) => {
+            const normalized = normalizeHandle(word.text);
+            return Math.abs(normalized.length - target.length) <= tolerance && editDistance(normalized, target) <= tolerance;
+        })
+        : undefined;
+    if (near) {
+        console.log(`Account handle matched within ${tolerance} edit(s): OCR saw "${near.text}" for target "${targetHandle}"`);
+        return near;
+    }
     const fuzzy = words.find((word) => {
         const normalized = normalizeHandle(word.text);
         if (normalized.length < 4 || target.length < 4) return false;
