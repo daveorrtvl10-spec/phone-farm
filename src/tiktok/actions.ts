@@ -48,6 +48,29 @@ export async function swipeCoordinate(
     console.log(`Swiped ${label}`);
 }
 
+// Labels of buttons that dismiss the interstitials a fresh account keeps
+// throwing up: iOS permission prompts, onboarding ("Select interests" →
+// Skip), leftover pickers (Cancel), promos (Not now / Close). Seen live.
+const DISMISS_PATTERNS: RegExp[] = [/^skip$/i, /^cancel$/i, /^not$/i, /^don[’']t$/i, /^close$/i, /^later$/i, /^dismiss$/i];
+
+async function dismissInterstitial(driver: Browser, words: OcrWord[], scale: number): Promise<boolean> {
+    for (const pattern of DISMISS_PATTERNS) {
+        const match = words.find((word) => pattern.test(word.text.trim()));
+        if (!match) continue;
+        const point = pointFromWord(match, scale);
+        await tapCoordinate(driver, point.x, point.y, `dismiss "${match.text}"`);
+        return true;
+    }
+    return false;
+}
+
+async function saveFailureScreenshot(remote: WdaRemoteControl, udid: string, name: string): Promise<string> {
+    const screenshotPath = path.resolve('.wda', `${name}-${udid}.png`);
+    await mkdir(path.dirname(screenshotPath), { recursive: true });
+    await writeFile(screenshotPath, await remote.getScreenshot(udid));
+    return screenshotPath;
+}
+
 // The profile header always carries the Following / Followers / Likes row.
 export function profilePageIsOpen(words: OcrWord[]): boolean {
     const seen = new Set(words.map((word) => word.text.trim().toLowerCase()));
@@ -77,7 +100,7 @@ export async function switchTikTokAccount(
     // enough on a live feed: promos/overlays ("56.3B post views here — Explore
     // now", seen live) swallow the first tap, and the old flow then hammered
     // the account-switcher coordinate on the feed where it can never open.
-    const MAX_PROFILE_TAB_ATTEMPTS = 3;
+    const MAX_PROFILE_TAB_ATTEMPTS = 5;
     let profileWords: OcrWord[] = [];
     let onProfile = false;
     for (let attempt = 1; attempt <= MAX_PROFILE_TAB_ATTEMPTS && !onProfile; attempt += 1) {
@@ -95,15 +118,20 @@ export async function switchTikTokAccount(
         }
         onProfile = profilePageIsOpen(profileWords);
         if (!onProfile && attempt < MAX_PROFILE_TAB_ATTEMPTS) {
-            // TikTok's first-run "Swipe up for more" overlay (seen live) and
-            // similar feed promos swallow tab-bar taps until the user swipes.
-            await swipeCoordinate(driver, coords.swipe, 'feed to clear overlays');
+            // Interstitials first (permission prompts, onboarding, leftover
+            // pickers); otherwise TikTok's first-run "Swipe up for more"
+            // overlay and similar feed promos swallow tab-bar taps until the
+            // user swipes. All seen live.
+            if (!(await dismissInterstitial(driver, profileWords, scale))) {
+                await swipeCoordinate(driver, coords.swipe, 'feed to clear overlays');
+            }
             await driver.pause(1500);
         }
     }
     if (!onProfile) {
+        const screenshotPath = await saveFailureScreenshot(remote, udid, 'profile-unreachable');
         const seen = profileWords.map((word) => word.text).join(', ') || '(nothing recognized)';
-        throw new Error(`Could not reach the TikTok Profile page after ${MAX_PROFILE_TAB_ATTEMPTS} taps. OCR saw: ${seen}`);
+        throw new Error(`Could not reach the TikTok Profile page after ${MAX_PROFILE_TAB_ATTEMPTS} taps. Screenshot saved to ${screenshotPath}. OCR saw: ${seen}`);
     }
 
     const MAX_SWITCHER_OPEN_ATTEMPTS = 4;
@@ -114,10 +142,19 @@ export async function switchTikTokAccount(
         await driver.pause(1500);
         switcherWords = await recognizeWords(await remote.getScreenshot(udid));
         opened = switcherIsOpen(switcherWords);
+        // A header tooltip ("What's up?", "Coffee or tea?" — seen live) can
+        // hide the handle from the first read and eat the switcher tap; once
+        // it clears, the profile itself may already prove the account.
+        if (!opened && profilePageIsOpen(switcherWords) && findHandleMatch(switcherWords, targetHandle)) {
+            console.log(`Already on TikTok account ${targetHandle}`);
+            return;
+        }
+        if (!opened) await dismissInterstitial(driver, switcherWords, scale);
     }
     if (!opened) {
+        const screenshotPath = await saveFailureScreenshot(remote, udid, 'switcher-unopened');
         const seen = switcherWords.map((word) => word.text).join(', ') || '(nothing recognized)';
-        throw new Error(`Could not open the TikTok account switcher after ${MAX_SWITCHER_OPEN_ATTEMPTS} attempts. OCR saw: ${seen}`);
+        throw new Error(`Could not open the TikTok account switcher after ${MAX_SWITCHER_OPEN_ATTEMPTS} attempts. Screenshot saved to ${screenshotPath}. OCR saw: ${seen}`);
     }
 
     const targetMatch = findHandleMatch(switcherWords, targetHandle);
