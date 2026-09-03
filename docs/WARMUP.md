@@ -46,7 +46,9 @@ Josh's instruction: no search/follow actions today.
   tabs Ask/Top/Videos/Users at y≈110; two-column grid, first tile centre
   **(104, 300)**, second tile (310, 300); back "<" (22,66) returns to the search
   screen, again to the feed. `DOOMSCROLL_SEARCH_RESULT_Y=300`.
-- TikTok app icon after the factory reset: home page 2, **(64, 524)**.
+- TikTok app icon after the factory reset: Xs Max home page 2 **(64, 524)**; XR home
+  page 2 **(350, 420)** (also in App Library → Social at (256, 410)). Swiping left
+  past page 2 lands in the App Library, where taps hit nothing.
 
 ## Not yet built
 - `warmup` block in `devices.json` pluginData: `{ "@handle": { "startedAt": ISO } }`
