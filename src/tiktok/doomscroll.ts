@@ -231,7 +231,7 @@ try {
     // and swiping there for minutes. Every few videos, and after any tap that can
     // navigate, prove we're still on the feed; otherwise back out or ask.
     async function onFeed(): Promise<{ ok: boolean; seen: string }> {
-        const shot = await remoteControl.getScreenshot(udid);
+        const shot = await remoteControl.getScreenshot(udid as string);
         const [full, bottom] = await Promise.all([
             recognizeWords(shot),
             recognizeRegionZoomed(shot, { left: 0, top: 0.86, width: 1, height: 0.12 }),
