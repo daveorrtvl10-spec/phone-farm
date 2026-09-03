@@ -15,13 +15,13 @@ local time is UTC−5. Owner of the schedule: Claude (operator)._
 - Profile completed by hand on day 1 (photo, name, bio). Phone on cellular.
   Never a second account on the phone.
 
-## Day 1 (2026-09-02, local) — DONE BY SCHEDULER, plain scrolling only
+## Day 1 (Wed 2026-09-02, local) — DONE, plain scrolling only
 Josh's instruction: no search/follow actions today.
 - ~09:xx  skimmer, 8 min, likes on, saves off
 - ~14:xx  skimmer, 10 min, likes on, saves off
 - ~20:xx  skimmer→casual, 12 min, likes on, saves off
 
-## Day 2 (2026-09-03, local) — add niche seeding (build tonight, run tomorrow)
+## Day 2 (Thu 2026-09-03, local) — training: searches on the Xs Max; XR still lurking
 - 3–4 sessions, casual → engaged, 10–20 min, likes and saves on.
 - Each session: 1–2 niche searches, watch 3–5 results through; linger on niche
   videos in the feed; 1–2 follows of creators whose video was watched fully.
@@ -29,7 +29,7 @@ Josh's instruction: no search/follow actions today.
   tech, brow lamination, beautician day in the life, salon vlog, skin prep.
 - Follow budget: 5–10 total over the two days, none in the first session.
 
-## After 48 h
+## After 48 h (lucy: Fri 2026-09-04 ~04:30 device time; leor: Fri ~08:00)
 - Post gate lifts. First content goes out as **drafts** reviewed by Josh; the
   content system's `warmup → active` rules govern cadence (draft-only until day
   30 per its playbook).
