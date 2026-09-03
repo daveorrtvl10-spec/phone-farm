@@ -192,7 +192,14 @@ export class WdaRemoteControl {
         this.assertTarget(udid);
         if (!(await this.isLocked(udid))) return;
         if (!this.passcode) {
-            throw new RemoteDeviceError('IOS_PASSCODE is not configured; cannot unlock the device');
+            // No passcode on the device (the farm's default): WDA's /wda/unlock
+            // wakes the screen and swipes it open on its own. Sessions now end
+            // by locking the phone, so this is the normal path, not an error.
+            await this.request('/wda/unlock', { method: 'POST' });
+            if (await this.isLocked(udid)) {
+                throw new RemoteDeviceError('Device is locked and IOS_PASSCODE is not configured; set a passcode in devices.json or remove it from the phone');
+            }
+            return;
         }
         // WDA's /wda/unlock presses Home twice, which wakes the screen and
         // surfaces the passcode keypad, but it then waits for the screen to
