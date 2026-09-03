@@ -247,8 +247,18 @@ try {
         for (let attempt = 1; attempt <= 3; attempt += 1) {
             const { ok, seen } = await onFeed();
             if (ok) return;
-            console.log(`Not on the feed after ${context} (attempt ${attempt}); backing out. OCR: ${seen.slice(0, 120)}`);
-            // Close sheet (X, top-right) or go back (<, top-left), then Home tab.
+            console.log(`Not on the feed after ${context} (attempt ${attempt}). OCR: ${seen.slice(0, 120)}`);
+            // First question: is TikTok even in front? Seen live: TikTok crashed to
+            // Springboard mid-session and the "Home tab" coordinate opened the
+            // Phone app from the dock. Never tap TikTok coordinates blind.
+            const state = await driver!.queryAppState(tiktokBundleId);
+            if (state !== 4) {
+                console.log(`TikTok app state ${state}; relaunching`);
+                await driver!.activateApp(tiktokBundleId);
+                await driver!.pause(6000);
+                continue;
+            }
+            // In TikTok but off the feed: close sheet (X) / back (<), then Home tab.
             await tapCoordinate(driver!, 384, 66, 'close (X)');
             await driver!.pause(900);
             await tapCoordinate(driver!, 22, 66, 'back (<)');
