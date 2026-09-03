@@ -255,7 +255,7 @@ function has(words: OcrWord[], pattern: RegExp): boolean {
 // An iOS keyboard OCRs as a row of single letters.
 function keyboardVisible(words: OcrWord[]): boolean {
     const letters = new Set(words.map((word) => word.text.trim()).filter((text) => /^[a-zA-Z]$/.test(text)).map((text) => text.toLowerCase()));
-    return ['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'].filter((key) => letters.has(key)).length >= 6;
+    return ['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'].filter((key) => letters.has(key)).length >= 7;
 }
 
 // Screen signatures, from readable words only. OCR cannot read white-on-red

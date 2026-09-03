@@ -238,7 +238,10 @@ try {
         ]);
         const words = [...full, ...bottom].map((word) => word.text.trim().toLowerCase());
         const tabs = ['home', 'friends', 'inbox', 'profile'].filter((tab) => words.includes(tab)).length;
-        const keyboard = ['q', 'w', 'e', 'r', 't', 'y'].filter((key) => words.includes(key)).length >= 4;
+        // A real iOS keyboard renders the whole top row. Garbled OCR of a video
+        // frame throws off stray single letters — 'q r t b a' from a feed frame
+        // paused a healthy run on 2026-09-03 — so require most of the row.
+        const keyboard = ['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'].filter((key) => words.includes(key)).length >= 7;
         const composer = words.some((word) => /^(message|send|comment)$/.test(word));
         const profilePage = words.includes('following') && words.includes('followers');
         return { ok: tabs >= 2 && !keyboard && !composer && !profilePage, seen: words.slice(0, 40).join(' ') };
