@@ -258,13 +258,21 @@ try {
                 await driver!.pause(6000);
                 continue;
             }
-            // In TikTok but off the feed: close sheet (X) / back (<), then Home tab.
-            await tapCoordinate(driver!, 384, 66, 'close (X)');
-            await driver!.pause(900);
+            // In TikTok but off the feed: back (<) first — it is the safe universal
+            // exit (search, results, profiles, sheets). Only touch the tab bar when
+            // the tab labels are actually visible; with a keyboard up that
+            // coordinate is a key.
             await tapCoordinate(driver!, 22, 66, 'back (<)');
-            await driver!.pause(900);
-            await tapCoordinate(driver!, homeTabX, homeTabY, 'Home tab');
-            await driver!.pause(1500);
+            await driver!.pause(1200);
+            const after = await onFeed();
+            if (after.ok) return;
+            if (/\b(home|friends|inbox|profile)\b/.test(after.seen)) {
+                await tapCoordinate(driver!, homeTabX, homeTabY, 'Home tab');
+                await driver!.pause(1500);
+            } else {
+                await tapCoordinate(driver!, 384, 66, 'close (X)');
+                await driver!.pause(900);
+            }
         }
         const { ok, seen } = await onFeed();
         if (ok) return;
@@ -314,10 +322,16 @@ try {
             await tapCoordinate(driver!, search.back.x, search.back.y, 'back from results');
             await driver!.pause(1200);
         }
-        await tapCoordinate(driver!, search.back.x, search.back.y, 'back to feed');
-        await driver!.pause(1500);
-        await tapCoordinate(driver!, homeTabX, homeTabY, 'Home tab');
-        await driver!.pause(1500);
+        // Return to the feed by reading the screen, not by counting taps: results →
+        // search screen → feed can take one to three backs, and with the keyboard
+        // up the Home-tab coordinate lands on the emoji key (seen live 2026-09-03).
+        for (let attempt = 1; attempt <= 4; attempt += 1) {
+            const { ok } = await onFeed();
+            if (ok) { console.log('Back on the feed after search'); return; }
+            await tapCoordinate(driver!, search.back.x, search.back.y, `back (${attempt})`);
+            await driver!.pause(1500);
+        }
+        await ensureFeed('a seeded search');
     }
 
     while (!stopRequested && hasTimeRemaining(Date.now(), deadline)) {
