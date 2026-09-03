@@ -3,6 +3,8 @@ import { remote, type Browser } from 'webdriverio';
 import { loadRegisteredDevices, resolveDeviceCoordinates, WdaRemoteControl } from '@git-agni/phone-farm-core';
 import { coordinateProfile, registeredAccounts } from './runtime-settings.js';
 import { switchTikTokAccount, tapCoordinate } from './actions.js';
+import { recognizeRegionZoomed, recognizeWords } from './ocr.js';
+import { awaitAssist } from './assist.js';
 import { detectEngagementControls } from './engagement-controls.js';
 import {
     PROFILES,
@@ -224,6 +226,44 @@ try {
         console.log(`Engagement control detection failed; using profile coordinates: ${error instanceof Error ? error.message : String(error)}`);
     }
 
+    // The silent failure mode (seen live on both phones, 2026-09-02): a tap lands
+    // on a creator's profile or a message composer and the loop keeps "liking"
+    // and swiping there for minutes. Every few videos, and after any tap that can
+    // navigate, prove we're still on the feed; otherwise back out or ask.
+    async function onFeed(): Promise<{ ok: boolean; seen: string }> {
+        const shot = await remoteControl.getScreenshot(udid);
+        const [full, bottom] = await Promise.all([
+            recognizeWords(shot),
+            recognizeRegionZoomed(shot, { left: 0, top: 0.86, width: 1, height: 0.12 }),
+        ]);
+        const words = [...full, ...bottom].map((word) => word.text.trim().toLowerCase());
+        const tabs = ['home', 'friends', 'inbox', 'profile'].filter((tab) => words.includes(tab)).length;
+        const keyboard = ['q', 'w', 'e', 'r', 't', 'y'].filter((key) => words.includes(key)).length >= 4;
+        const composer = words.some((word) => /^(message|send|comment)$/.test(word));
+        const profilePage = words.includes('following') && words.includes('followers');
+        return { ok: tabs >= 2 && !keyboard && !composer && !profilePage, seen: words.slice(0, 40).join(' ') };
+    }
+    async function ensureFeed(context: string): Promise<void> {
+        for (let attempt = 1; attempt <= 3; attempt += 1) {
+            const { ok, seen } = await onFeed();
+            if (ok) return;
+            console.log(`Not on the feed after ${context} (attempt ${attempt}); backing out. OCR: ${seen.slice(0, 120)}`);
+            // Close sheet (X, top-right) or go back (<, top-left), then Home tab.
+            await tapCoordinate(driver!, 384, 66, 'close (X)');
+            await driver!.pause(900);
+            await tapCoordinate(driver!, 22, 66, 'back (<)');
+            await driver!.pause(900);
+            await tapCoordinate(driver!, homeTabX, homeTabY, 'Home tab');
+            await driver!.pause(1500);
+        }
+        const { ok, seen } = await onFeed();
+        if (ok) return;
+        await awaitAssist({ udid: udid as string, step: 'return to feed', reason: `left the For You feed after ${context} and could not get back — please open the For You feed and resume`, ocr: seen });
+        const again = await onFeed();
+        if (!again.ok) throw new Error('Still not on the feed after operator resume');
+    }
+    let sinceFeedCheck = 0;
+
     // Nobody scrolls for exactly the booked minutes: ±20% per session.
     const jitteredMinutes = durationMinutes * (0.8 + Math.random() * 0.4);
     console.log(`Session length ${jitteredMinutes.toFixed(1)} min (booked ${durationMinutes})`);
@@ -308,6 +348,8 @@ try {
             await tapCoordinate(driver, likeX, likeY - 69, 'Follow');
             follows += 1;
             followedLast = true;
+            await driver.pause(1200);
+            await ensureFeed('a follow tap');
         } else {
             followedLast = false;
         }
@@ -343,6 +385,11 @@ try {
         }]);
         await driver.releaseActions();
         swipes += 1;
+        sinceFeedCheck += 1;
+        if (sinceFeedCheck >= 6) {
+            sinceFeedCheck = 0;
+            await ensureFeed('scrolling');
+        }
     }
 
     const elapsedMs = Date.now() - runStartedAt;
