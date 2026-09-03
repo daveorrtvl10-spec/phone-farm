@@ -38,9 +38,14 @@ Josh's instruction: no search/follow actions today.
 
 ## Measured taps for the seeding steps (Xs Max, TikTok Sept 2026)
 - Search icon, top-right of the For You header: **(386, 66)**.
-- Follow "+" under the creator avatar on the video rail: **(383, 401)**
-  (avatar centre ≈ (383, 375); heart ≈ (382, 470) — detector locates the heart,
-  so derive follow = heart.y − 69 for robustness).
+- Follow "+" under the creator avatar: NOT yet reliable — heart.y−69 opened a
+  creator profile (Xs Max) and a DM composer (XR) on 2026-09-02. Follows are OFF
+  until the "+" is measured on a live video. Do not re-enable by derivation.
+- Search screen (measured 2026-09-03): input top, back "<" (22,66), keyboard
+  Search key (361,793), suggested terms listed below the input. Results page:
+  tabs Ask/Top/Videos/Users at y≈110; two-column grid, first tile centre
+  **(104, 300)**, second tile (310, 300); back "<" (22,66) returns to the search
+  screen, again to the feed. `DOOMSCROLL_SEARCH_RESULT_Y=300`.
 - TikTok app icon after the factory reset: home page 2, **(64, 524)**.
 
 ## Not yet built
