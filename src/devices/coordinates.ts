@@ -33,6 +33,10 @@ export interface DeviceCoordinates {
             cellX: number;
             cellStep: number;
             cellY: number;
+            /** Top-anchored fallback (short library). Measured per profile; omit if unmeasured. */
+            topRowY?: number;
+            cellTopRowY?: number;
+            visibleRows?: number;
         };
         pickerNext: Point;
         editorNext: Point;
@@ -95,6 +99,12 @@ export const DEVICE_COORDINATES = {
                 cellX: 69,
                 cellStep: 138,
                 cellY: 735,
+                // Measured 2026-09-03 with a 2-photo library: one row at the TOP.
+                // Circle centre y=156, thumbnail centre y=208; 4 rows fit before
+                // the grid starts scrolling.
+                topRowY: 156,
+                cellTopRowY: 208,
+                visibleRows: 4,
             },
             pickerNext: { x: 340, y: 838 },
             editorNext: { x: 299, y: 830 },

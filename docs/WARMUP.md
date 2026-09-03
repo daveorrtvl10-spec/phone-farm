@@ -41,6 +41,14 @@ Josh's instruction: no search/follow actions today.
 - Follow "+" under the creator avatar: NOT yet reliable — heart.y−69 opened a
   creator profile (Xs Max) and a DM composer (XR) on 2026-09-02. Follows are OFF
   until the "+" is measured on a live video. Do not re-enable by derivation.
+- Picker grid anchoring (measured 2026-09-03): the Recents grid is oldest-first.
+  With a SHORT library it sits at the TOP and does not scroll — first-row circle
+  y=156, thumbnail centre y=208, rows 138pt, columns at x=69/207/345 (thumbnails)
+  and 120/258/396 (circles); 4 rows fit before it scrolls. With a long library the
+  code scrolls to the bottom and uses the bottom-anchored numbers (thumbnail 735,
+  circle 683, 600 once the selection tray shifts it). Assuming the bottom layout on
+  a 2-photo library tapped empty space and stalled a post — regression-tested in
+  test/picker-layout.test.ts.
 - Search screen (measured 2026-09-03): input top, back "<" (22,66), keyboard
   Search key (361,793), suggested terms listed below the input. Results page:
   tabs Ask/Top/Videos/Users at y≈110; two-column grid, first tile centre

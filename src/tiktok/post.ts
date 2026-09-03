@@ -7,7 +7,7 @@ import type { PostManifest } from './post-manifest.js';
 import { type TikTokCoordinates } from './coordinates.js';
 import { coordinateProfile, registeredAccounts } from './runtime-settings.js';
 import { switchTikTokAccount, swipeCoordinate, tapCoordinate } from './actions.js';
-import { recentPickerTargets } from './post-layout.js';
+import { newestCellTarget, recentPickerTargets } from './post-layout.js';
 import { isRedCheckboxChecked } from './pixel.js';
 import { recognizeRegionZoomed, recognizeWords, type OcrWord } from './ocr.js';
 import { awaitAssist } from './assist.js';
@@ -222,6 +222,8 @@ async function chooseRecentMedia(
             firstY: coordinates.picker.firstY,
             trayY: coordinates.picker.trayY,
             rowStep: coordinates.picker.rowStep,
+            topRowY: coordinates.picker.topRowY,
+            visibleRows: coordinates.picker.visibleRows,
         });
         for (const [selection, { x, y }] of targets.entries()) {
             await tapCoordinate(driver, x, y, `media ${selection + 1}/${count}`);
@@ -237,9 +239,15 @@ async function chooseRecentMedia(
             console.log('"Use layout" not shown; skipping');
         }
     } else {
-        const column = latestIndex % 3;
-        const x = coordinates.picker.cellX + (column * coordinates.picker.cellStep);
-        await tapCoordinate(driver, x, coordinates.picker.cellY, 'media 1/1');
+        const { x, y } = newestCellTarget(assetCount, {
+            cellX: coordinates.picker.cellX,
+            cellStep: coordinates.picker.cellStep,
+            cellY: coordinates.picker.cellY,
+            cellTopRowY: coordinates.picker.cellTopRowY,
+            rowStep: coordinates.picker.rowStep,
+            visibleRows: coordinates.picker.visibleRows,
+        });
+        await tapCoordinate(driver, x, y, 'media 1/1');
         await driver.pause(1000);
     }
     await advanceToCaptionScreen(driver, remote, udid, coordinates);
