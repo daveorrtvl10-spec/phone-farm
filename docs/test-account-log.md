@@ -11,3 +11,4 @@
 | @leor.towe2 | XR | 3 booked, 1 clean + 1 partial | ~300 | ~25 | 0 | 0 | 10:33 cut short by a worker restart (my error); 19:05 missed (phone unplugged); 19:40 run ended in a DM composer after a follow tap → stopped by hand, nothing sent |
 Fixes shipped tonight: on-feed guard every 6 swipes + after navigating taps; live screen watch; Home+lock at session end; ±20% length jitter. Follows disabled until the "+" is measured on a live video.
 Warm-up clocks: lucy 28h 52m left (opens Fri 2026-09-04 ~04:30 device time), leor 32h 24m left.
+| 2026-09-03 | lucy health-test slide (bg, 1 refused + 1 ok) | gpt-image-1 1024×1536 medium | $0.12 | inbox/lucy-health-post.jpg |
