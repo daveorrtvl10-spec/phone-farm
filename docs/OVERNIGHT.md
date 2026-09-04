@@ -27,7 +27,7 @@ leaves account creation as one command pending a mailbox.
       never double-booking a device. Replaces booking by hand.
 - [x] **C. Results reader** — screenshot the profile grid, OCR the view counts, write them
       back to the roster. Feeds the 700-view health test and the view-count diagnosis.
-- [ ] **D. Outage recovery** — when a device reconnects, rerun sessions missed inside their
+- [x] **D. Outage recovery** — when a device reconnects, rerun sessions missed inside their
       window automatically instead of losing the day.
 - [ ] **E. Account-creation driver** — map TikTok's sign-up flow and drive it to the edge:
       everything except the emailed code and the captcha, both of which pause for the
@@ -52,3 +52,7 @@ leaves account creation as one command pending a mailbox.
   cannot see the small white count over a thumbnail; cropping the tile's bottom-left badge,
   flattening to greyscale and thresholding to near-white does. Verified against the real
   profile screenshot: reads 0 for the health post, null for tiles that do not exist.
+- 23:05 — D done. `src/planning/recover.ts` + `scripts/recover-missed.mjs` re-run sessions
+  lost to an outage, but only while their golden window is still open, only if the account
+  has not run in 75 min, and at most twice a day — so a long outage cannot produce a burst
+  of activity that looks nothing like a person. 58 tests green.
