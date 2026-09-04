@@ -56,6 +56,7 @@ if (flag('replace')) {
 }
 
 let booked = 0;
+const failed = [];
 for (const s of sessions) {
     const form = new URLSearchParams({
         scheduleKind: 'once', runAt: s.runAt, durationMinutes: String(s.durationMinutes),
@@ -64,9 +65,22 @@ for (const s of sessions) {
         ...(s.searchCount ? { searchCount: String(s.searchCount), seedTerms: s.seedTerms.join(',') } : {}),
         ...(s.followBudget ? { followBudget: String(s.followBudget) } : {}),
     });
-    const res = await fetch(`${API}/api/devices/${s.device}/fragments/scroll-run`, {
-        method: 'POST', headers: { origin: API, 'content-type': 'application/x-www-form-urlencoded' }, body: form,
-    });
-    if (res.ok) booked += 1; else console.error(`  FAILED ${local(s.runAt)} ${s.handle}: ${res.status}`);
+    // The Mac sleeps mid-loop often enough that one dropped connection must not
+    // abandon the rest of the day, or leave us guessing what landed.
+    try {
+        const res = await fetch(`${API}/api/devices/${s.device}/fragments/scroll-run`, {
+            method: 'POST', headers: { origin: API, 'content-type': 'application/x-www-form-urlencoded' }, body: form,
+            signal: AbortSignal.timeout(15000),
+        });
+        if (res.ok) booked += 1;
+        else { failed.push(`${local(s.runAt)} ${s.handle} (${res.status})`); console.error(`  FAILED ${local(s.runAt)} ${s.handle}: ${res.status}`); }
+    } catch (error) {
+        failed.push(`${local(s.runAt)} ${s.handle} (${error instanceof Error ? error.message : error})`);
+        console.error(`  FAILED ${local(s.runAt)} ${s.handle}: ${error instanceof Error ? error.message : error}`);
+    }
 }
 console.log(`\nBooked ${booked}/${sessions.length} sessions for ${date}.`);
+if (failed.length) {
+    console.log(`Not booked (re-run with --replace when the Mac is up):\n  - ${failed.join('\n  - ')}`);
+    process.exitCode = booked > 0 ? 0 : 1;
+}
