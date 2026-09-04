@@ -31,13 +31,23 @@ if (firePath) {
     try { done = parseDone(await readFile(donePath, 'utf8')); } catch { /* first run */ }
     const todo = remaining(requests, done);
     if (todo.length === 0) { console.log(`All ${requests.length} requests already sent.`); process.exit(0); }
+    // The reverse tunnel keeps its listener open while the Mac sleeps, so requests
+    // hang rather than refuse. Probe once and bail — otherwise every attempt burns
+    // one timeout per outstanding request before learning the same thing.
+    try {
+        const probe = await fetch(`${API}/health`, { signal: AbortSignal.timeout(3000) });
+        if (!probe.ok) throw new Error(`health ${probe.status}`);
+    } catch (error) {
+        console.log(`Dashboard not answering (${error instanceof Error ? error.message : error}); ${todo.length} still outstanding.`);
+        process.exit(1);
+    }
     console.log(`Firing ${todo.length} of ${requests.length} requests…`);
     let sent = 0;
     for (const request of todo) {
         try {
             const res = await fetch(`${API}/api/devices/${request.device}/fragments/scroll-run`, {
                 method: 'POST', headers: { origin: API, 'content-type': 'application/x-www-form-urlencoded' },
-                body: request.body, signal: AbortSignal.timeout(6000),
+                body: request.body, signal: AbortSignal.timeout(4000),
             });
             if (res.status === 202) { await appendFile(donePath, `${request.index}\n`); sent += 1; console.log(`  sent ${request.index}`); }
             else console.error(`  ${request.index}: HTTP ${res.status}`);
