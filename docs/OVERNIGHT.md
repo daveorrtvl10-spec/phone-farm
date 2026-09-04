@@ -62,6 +62,11 @@ leaves account creation as one command pending a mailbox.
   docs/SCALING-TO-20.md with costs. For those later accounts, Josh already has Cloudflare
   (R2 keys are on the VPS): Email Routing → an Email Worker → R2, which this session can
   already read. Worker written in mailbox/email-worker.js.
+- 22:55 — The Mac has stayed asleep all night, so no device work has been possible since
+  21:45. Built `scripts/on-wake.mjs`: an idempotent catch-up the watcher now fires on any
+  reconnect — installs the caffeinate agent, re-runs sessions the outage cost (window
+  permitting), and re-books the day if the outage wiped it. This replaces the one-shot
+  caffeinate installer, which could expire unused.
 - 23:35 — Tools for the morning: `scripts/status.mjs` (one-glance status, degrades cleanly
   when the Mac is asleep) and `scripts/read-views.mjs` (reads the health post's views off
   the phone and writes them into the roster, refusing to touch a busy phone).
