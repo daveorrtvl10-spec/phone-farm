@@ -10,14 +10,23 @@
       "createdAt": "2026-09-02T09:30:00Z",
       "warmupHours": 36,
       "lurkerHours": 24,
-      "seedTerms": ["skincare routine", "esthetician", "facial treatment", "lash tech", "brow lamination", "beautician day in the life", "salon vlog", "skin prep"],
+      "seedTerms": [
+        "skincare routine",
+        "esthetician",
+        "facial treatment",
+        "lash tech",
+        "brow lamination",
+        "beautician day in the life",
+        "salon vlog",
+        "skin prep"
+      ],
       "posts": [
         {
           "postedAt": "2026-09-03T23:51:00Z",
           "kind": "health-test",
-          "views24h": null,
+          "views24h": 2,
           "views48h": null,
-          "note": "Copied hook+caption of a 161.8K-like skincare post; image regenerated. Posted by hand."
+          "note": "Copied hook+caption of a 161.8K-like skincare post; image regenerated. Posted by hand. | 2 views at ~12.7 h (reported by Josh 2026-09-04 07:34 phone). Playbook: under 300 = account failure, not content failure."
         }
       ]
     },
@@ -30,7 +39,16 @@
       "createdAt": "2026-09-02T13:01:54Z",
       "warmupHours": 48,
       "lurkerHours": 24,
-      "seedTerms": ["psychology facts", "signs you", "things nobody tells you", "human behaviour", "overthinking", "why do people", "social cues", "personality traits"],
+      "seedTerms": [
+        "psychology facts",
+        "signs you",
+        "things nobody tells you",
+        "human behaviour",
+        "overthinking",
+        "why do people",
+        "social cues",
+        "personality traits"
+      ],
       "posts": []
     }
   ]

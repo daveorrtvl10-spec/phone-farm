@@ -16,6 +16,7 @@ import {
     hasTimeRemaining,
     isPersonality,
     pickWatchDurationMs,
+    pickSwipe,
 } from './doomscroll-profile.js';
 
 function positiveInteger(name: string, fallback: number): number {
@@ -320,9 +321,10 @@ try {
             // Watch a handful of results like the feed, then come back.
             for (let i = 0; i < 4 && !stopRequested && hasTimeRemaining(Date.now(), deadline); i += 1) {
                 await cancellableDelay(clampToDeadline(Date.now(), deadline, pickWatchDurationMs(profile) + 3000));
+                const resultFlick = pickSwipe({ startY: swipeStartY, endY: swipeEndY, durationMs: swipeDurationMs });
                 await driver!.performActions([{ type: 'pointer', id: 'finger', parameters: { pointerType: 'touch' }, actions: [
-                    { type: 'pointerMove', duration: 0, x: swipeX, y: swipeStartY }, { type: 'pointerDown', button: 0 },
-                    { type: 'pointerMove', duration: swipeDurationMs, x: swipeX, y: swipeEndY }, { type: 'pointerUp', button: 0 } ] }]);
+                    { type: 'pointerMove', duration: 0, x: swipeX, y: resultFlick.startY }, { type: 'pointerDown', button: 0 },
+                    { type: 'pointerMove', duration: resultFlick.durationMs, x: swipeX, y: resultFlick.endY }, { type: 'pointerUp', button: 0 } ] }]);
                 await driver!.releaseActions();
             }
             await tapCoordinate(driver!, search.back.x, search.back.y, 'back from results');
@@ -440,15 +442,17 @@ try {
 
         // Coordinate actions bypass XCTest's expensive application-element
         // lookup, which can hang on TikTok's continuously updating feed.
+        // Every flick is jittered: one fixed vector repeated is a signature.
+        const flick = pickSwipe({ startY: swipeStartY, endY: swipeEndY, durationMs: swipeDurationMs });
         await driver.performActions([{
             type: 'pointer',
             id: 'finger',
             parameters: { pointerType: 'touch' },
             actions: [
-                { type: 'pointerMove', duration: 0, x: swipeX, y: swipeStartY },
+                { type: 'pointerMove', duration: 0, x: swipeX, y: flick.startY },
                 { type: 'pointerDown', button: 0 },
-                { type: 'pause', duration: 100 },
-                { type: 'pointerMove', duration: swipeDurationMs, x: swipeX, y: swipeEndY },
+                { type: 'pause', duration: 60 + Math.round(Math.random() * 90) },
+                { type: 'pointerMove', duration: flick.durationMs, x: swipeX, y: flick.endY },
                 { type: 'pointerUp', button: 0 },
             ],
         }]);
