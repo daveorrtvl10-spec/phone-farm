@@ -23,6 +23,41 @@ login, restart on crash, and the tunnel reconnects by itself. Logs: `logs/`.
 Claude pulls, restarts the worker, submits posts, screenshots, taps, and reads
 run logs without Josh.
 
+## 2026-09-04 — driving by element, and the off-feed cause found
+
+**The off-feed drift had a specific cause, and it is fixed.** Slideshow handling
+swiped a blind 2-6 slides regardless of how long the post was. One swipe past the
+last slide opens the creator's profile, and the run then watched and engaged there
+for minutes. A live two-minute session landed on a creator profile three times
+this way. It is the behaviour Josh saw, and the most bot-like thing the farm did.
+
+The slide count is now read off the screen (`src/tiktok/slide-dots.ts`), because
+TikTok exposes no page indicator in the accessibility hierarchy at any snapshot
+depth the feed survives. The current dot is drawn far brighter than the rest, which
+gives both the number of slides and the position. When the dots cannot be read the
+run stays put rather than swiping blind.
+
+Verified live: a five-minute, 33-video session with **zero** off-feed events, and a
+two-slide post correctly left alone at its last slide.
+
+**Blockers are handled by label now, not by guessed coordinates.** Modal alerts go
+through WDA's native alert API; full-screen and in-feed overlays are found in the
+view hierarchy and pressed by element id. Anything matching no known-safe dismissal
+is left for a human instead of guessed at, and nothing destructive is ever pressed.
+Proven live by clearing an Amazon promo overlay off the feed.
+
+**Measured limits worth keeping (they cost a day to learn):**
+
+| snapshot depth | cost on the feed | what it exposes |
+| --- | --- | --- |
+| 8 | ~1.3s | tab bar only |
+| 16 | ~4.3s | top nav and in-feed promo close buttons |
+| 24 | — | kills the WDA process |
+
+The first snapshot on the feed can take **67 seconds**; every call after it is
+sub-second. Scripts that gave up early looked exactly like a crashed WDA and took
+the device offline, which is what several earlier "crashes" actually were.
+
 ## What was done tonight (in order)
 1. Fork, Mac runbook, launchd agents, env template. Found the upstream install
    is broken (Appium 3 with an Appium-2 driver); pinned Appium 2.19.
