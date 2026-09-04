@@ -57,6 +57,12 @@ outages will only stop when the lid is open, or an external display is attached.
 the one thing tonight that needed a person and could not be worked around.
 
 ## Progress log
+- 00:50 — The wake windows are shorter than a booking pass. Seven sessions means seven
+  API calls, and the Mac has been sleeping mid-loop. Two fixes: the planner now catches
+  each booking separately and reports exactly which ones did not land (so a partial
+  booking is visible instead of a crash), and `inbox/book-until-done.sh` retries the whole
+  day every 90 s until it reports Booked N/N. It will land Friday's day the moment a long
+  enough window appears, without needing me awake for it.
 - 00:05 — G done. `content/ready/@handle/<slug>/` + `scripts/post-next.mjs`: whoever makes
   the slides drops a folder, the farm posts the oldest one and moves it to
   `content/posted/` with a result, recording it in the roster. Every gate is enforced
