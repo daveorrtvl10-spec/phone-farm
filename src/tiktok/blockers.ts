@@ -36,6 +36,9 @@ const OVERLAY_DISMISS = [
     /^cancel$/i,
     /^done$/i,
     /^ask app not to track$/i,
+    // In-feed promos label their dismiss control things like "ic party close".
+    // Anchored to the end so TikTok's own "Close Friends" is never matched.
+    /[\s_-]close$/i,
 ];
 
 export interface BlockerOutcome {

@@ -26,3 +26,11 @@ test('ignores surrounding whitespace on a label', () => {
 test('never picks a destructive-sounding button', () => {
     assert.equal(findOverlayDismissal(['Delete Account', 'Log Out']), null);
 });
+
+test('dismisses an in-feed promo whose close control is oddly labelled', () => {
+    assert.equal(findOverlayDismissal(['LIVE', 'Search', 'ic party close']), 'ic party close');
+});
+
+test('never mistakes Close Friends for a dismissal', () => {
+    assert.equal(findOverlayDismissal(['Close Friends', 'Following', 'For You']), null);
+});

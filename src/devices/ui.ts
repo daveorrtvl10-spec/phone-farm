@@ -25,6 +25,14 @@ const JSON_HEADERS = { 'content-type': 'application/json' };
 /** Snapshot calls can legitimately take over a minute on a cold session. */
 const CALL_TIMEOUT_MS = 120_000;
 
+/**
+ * Deepest snapshot TikTok's feed survives, measured on an iPhone Xs Max:
+ * depth 8 sees only the tab bar (1.3s), depth 16 also sees the top nav and
+ * in-feed promo close buttons (4.3s), and depth 24 kills the WDA process
+ * outright. Raise this only against a measurement, never a guess.
+ */
+export const FEED_SNAPSHOT_DEPTH = 16;
+
 async function call(
     base: string,
     path: string,
@@ -53,7 +61,7 @@ async function call(
  * Callers that treat a slow first response as a dead device will abandon a
  * perfectly healthy session, so the wait happens here, once, deliberately.
  */
-export async function openUiSession(base: string, snapshotMaxDepth = 8): Promise<UiSession> {
+export async function openUiSession(base: string, snapshotMaxDepth = FEED_SNAPSHOT_DEPTH): Promise<UiSession> {
     const created = await call(base, '/session', {
         method: 'POST',
         body: { capabilities: { alwaysMatch: {} } },
