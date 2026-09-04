@@ -1,6 +1,6 @@
 # Phone Farm — status and decisions
 
-_Last updated 2026-09-02 (end of the first build-and-prove session)._
+_Last updated 2026-09-04 (overnight). Front door: run `node --import tsx scripts/status.mjs`._
 
 ## What this is
 A fork of Handler's open-source iPhone farm, adapted to Josh's iPhone Xs Max and
@@ -69,6 +69,24 @@ run logs without Josh.
 - The contacts prompt recurs unless TikTok → Settings → Privacy → Sync contacts
   is off; the passkey sheet recurs because the phone has no passcode (dismissed
   automatically).
+
+## Added overnight 2026-09-03/04
+- `roster.json` + `src/planning/roster.ts` — every account's device, niche, warm-up and
+  posts. **Phase is derived** (lurker → training → health-test → posting → blocked) from
+  age and the health post's views, so it cannot drift from reality.
+- `src/planning/plan.ts` + `scripts/plan-day.mjs` — books a full jittered day per account
+  inside the golden windows, never overlapping two accounts on one phone.
+- `src/planning/views.ts` + `scripts/read-views.mjs` — reads play counts off the profile
+  grid (thresholded badge crops; plain OCR cannot see white text on a thumbnail).
+- `src/planning/recover.ts` + `scripts/recover-missed.mjs` — re-runs sessions lost to an
+  outage, inside their window only, capped so a long outage cannot cause a burst. The
+  watcher calls it automatically when a phone reconnects.
+- `scripts/nightly.mjs` — the whole nightly routine as one command.
+- `scripts/status.mjs` — one-glance status; works even with the Mac asleep.
+- `mac/launchd/com.phonefarm.caffeinate.plist` — stops the Mac sleeping mid-schedule.
+- `docs/SCALING-TO-20.md` — what 20 accounts really needs. Key finding: the first account
+  on each phone signs in with Apple and needs **no mailbox**; only accounts 2–3 per phone
+  need one, and Cloudflare Email Routing → Worker → R2 covers that with existing keys.
 
 ## Next, in order
 1. Pause-and-wait in the worker + VPS watcher that wakes Claude.
