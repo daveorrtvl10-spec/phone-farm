@@ -16,7 +16,15 @@
 import type { BlockerProbe } from './blocker-probe.js';
 import { type AlertPolicy, chooseButton, isDestructive } from './system-alerts.js';
 
-/** Labels that dismiss an overlay without agreeing to anything. */
+/**
+ * Labels that dismiss an overlay without agreeing to anything.
+ *
+ * These are safe while scrolling, where backing out of a composer or a promo is
+ * exactly what is wanted. They are NOT safe during posting: "Cancel" and "Done"
+ * appear on the caption editor and the post form, where pressing them discards
+ * a draft. Do not wire overlay dismissal into the post flow without narrowing
+ * this list for that context.
+ */
 const OVERLAY_DISMISS = [
     /^not now$/i,
     /^maybe later$/i,
