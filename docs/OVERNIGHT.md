@@ -57,6 +57,13 @@ outages will only stop when the lid is open, or an external display is attached.
 the one thing tonight that needed a person and could not be worked around.
 
 ## Progress log
+- 01:50 — Better idea, from watching the retries lose: the *planner* was the problem, not
+  the network. Starting it costs 10–20 s of TypeScript compilation, and the Mac slept
+  before it ever reached the HTTP calls. So the plan is now computed **offline** (no Mac
+  needed) into `inbox/plan-2026-09-04.json`, flattened to seven pre-built request bodies,
+  and fired by plain `curl` — each call lands in milliseconds and is recorded, so the work
+  resumes rather than restarting. A wake window of a few seconds is now enough. Worth
+  folding into `scripts/plan-day.mjs` as a `--emit` / `--fire` pair once the Mac is stable.
 - 00:50 — The wake windows are shorter than a booking pass. Seven sessions means seven
   API calls, and the Mac has been sleeping mid-loop. Two fixes: the planner now catches
   each booking separately and reports exactly which ones did not land (so a partial
