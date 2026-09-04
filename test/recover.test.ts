@@ -60,3 +60,14 @@ test('two accounts on one phone each get their own recovery', () => {
     const out = sessionsToRecover([a, b], { now: MIDDAY, tzOffsetHours: TZ });
     assert.deepEqual(out.map((e) => e.payload.account), ['@a', '@b']);
 });
+
+test('a disconnected phone is never recovered onto', () => {
+    const one = missed({ id: 'a', deviceUdid: 'DEV-A' });
+    const two = missed({ id: 'b', deviceUdid: 'DEV-B', payload: { account: '@b', durationMinutes: 12 } });
+    const out = sessionsToRecover([one, two], {
+        now: MIDDAY, tzOffsetHours: TZ, readyDevices: new Set(['DEV-B']),
+    });
+    assert.deepEqual(out.map((e) => e.deviceUdid), ['DEV-B'], 'only the connected phone is recovered');
+    // Skipping a dead phone must not consume its budget either.
+    assert.equal(sessionsToRecover([one], { now: MIDDAY, tzOffsetHours: TZ, readyDevices: new Set() }).length, 0);
+});

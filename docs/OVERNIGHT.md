@@ -79,6 +79,12 @@ in with Apple and needs **no mailbox**, so seven phones reaches twenty accounts 
 mail setup for the first seven.
 
 ## Progress log
+- 06:55 — The Mac is finally staying up: the caffeinate agent is loaded and answering.
+  Both phones are still off USB, which exposed a gap worth fixing — recovery would have
+  re-booked onto a disconnected phone and burned that account's daily recovery budget on
+  runs that expire offline immediately. `sessionsToRecover` now takes the set of devices
+  that are actually connected and ready, and skips the rest without consuming budget.
+  74 tests green.
 - 03:55 — Reviewed the one path that runs unattended tonight and found a real bug.
   `read-views.mjs` took the newest grid tile and wrote it into the health post's record.
   That is right only while the account has exactly one post; after a second post it would

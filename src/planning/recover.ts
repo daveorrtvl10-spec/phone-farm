@@ -38,6 +38,12 @@ export interface RecoverOptions {
     maxPerAccount?: number;
     /** Minutes of window the session still needs to fit. */
     leadMinutes?: number;
+    /**
+     * Devices actually connected and ready. A disconnected phone cannot run
+     * anything, and re-booking onto one burns the day's recovery budget on runs
+     * that expire offline immediately. Omit to skip the check.
+     */
+    readyDevices?: Set<string>;
 }
 
 const OFFLINE = /device is offline|window expired/i;
@@ -80,6 +86,7 @@ export function sessionsToRecover(executions: ExecutionSummary[], options: Recov
         .sort((a, b) => Date.parse(a.scheduledFor) - Date.parse(b.scheduledFor));
 
     for (const execution of missed) {
+        if (options.readyDevices && !options.readyDevices.has(execution.deviceUdid)) continue;
         const account = execution.payload.account ?? execution.deviceUdid;
         const duration = execution.payload.durationMinutes ?? 12;
         if ((perAccount.get(account) ?? 0) >= maxPerAccount) continue;

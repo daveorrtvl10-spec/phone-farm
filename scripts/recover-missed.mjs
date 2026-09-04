@@ -28,7 +28,20 @@ for (const device of devices) {
 }
 if (executions.length === 0) { console.log('Nothing to recover right now.'); process.exit(0); }
 
-const recover = sessionsToRecover(executions, { now: Date.now(), tzOffsetHours: tz });
+// A disconnected phone cannot run anything, and re-booking onto one burns the
+// day's recovery budget on runs that expire offline immediately. Only recover
+// for devices that are actually ready.
+const ready = new Set();
+for (const device of devices) {
+    try {
+        const res = await fetch(`${API}/api/devices/${device}/connection`, { signal: AbortSignal.timeout(8000) });
+        const conn = await res.json();
+        if (conn.physical === 'connected' && conn.wda === 'ready') ready.add(device);
+        else console.log(`skipping ${device.slice(-6)}: ${conn.physical}/${conn.wda}`);
+    } catch { console.log(`skipping ${device.slice(-6)}: connection unknown`); }
+}
+
+const recover = sessionsToRecover(executions, { now: Date.now(), tzOffsetHours: tz, readyDevices: ready });
 if (recover.length === 0) { console.log('Nothing to recover right now.'); process.exit(0); }
 
 for (const execution of recover) {
