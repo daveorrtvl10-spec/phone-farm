@@ -22,6 +22,9 @@ export interface UiSession {
 
 const JSON_HEADERS = { 'content-type': 'application/json' };
 
+/** Snapshot calls can legitimately take over a minute on a cold session. */
+const CALL_TIMEOUT_MS = 120_000;
+
 async function call(
     base: string,
     path: string,
@@ -31,6 +34,7 @@ async function call(
         method: init?.method ?? 'GET',
         headers: init?.body ? JSON_HEADERS : undefined,
         body: init?.body ? JSON.stringify(init.body) : undefined,
+        signal: AbortSignal.timeout(CALL_TIMEOUT_MS),
     });
     const text = await res.text();
     try {
@@ -40,8 +44,16 @@ async function call(
     }
 }
 
-/** Open a bare WDA session and cap snapshot depth so queries stay survivable. */
-export async function openUiSession(base: string, snapshotMaxDepth = 16): Promise<UiSession> {
+/**
+ * Open a bare WDA session, cap snapshot depth, and pay the cold-snapshot cost
+ * up front.
+ *
+ * The first hierarchy snapshot taken while TikTok's feed is on screen has been
+ * measured at 67 seconds; every call after it returns in well under a second.
+ * Callers that treat a slow first response as a dead device will abandon a
+ * perfectly healthy session, so the wait happens here, once, deliberately.
+ */
+export async function openUiSession(base: string, snapshotMaxDepth = 8): Promise<UiSession> {
     const created = await call(base, '/session', {
         method: 'POST',
         body: { capabilities: { alwaysMatch: {} } },
@@ -51,7 +63,7 @@ export async function openUiSession(base: string, snapshotMaxDepth = 16): Promis
     const session = { base, sessionId };
     await call(base, `/session/${sessionId}/appium/settings`, {
         method: 'POST',
-        body: { settings: { snapshotMaxDepth, customSnapshotTimeout: 15 } },
+        body: { settings: { snapshotMaxDepth, customSnapshotTimeout: 30, waitForIdleTimeout: 0 } },
     }).catch(() => undefined);
     return session;
 }
@@ -125,4 +137,17 @@ export async function activeBundleId(session: UiSession): Promise<string | null>
     const res = await call(session.base, `/session/${session.sessionId}/wda/activeAppInfo`);
     if (res.status !== 200) return null;
     return (res.value as { bundleId?: string } | undefined)?.bundleId ?? null;
+}
+
+/**
+ * Force the expensive first snapshot so later checks are fast.
+ * Returns how long it took, which is worth logging: a cold feed snapshot in the
+ * tens of seconds is normal, and mistaking it for a hang is what previously
+ * looked like a crashed device.
+ */
+export async function warmUpSnapshot(session: UiSession): Promise<number> {
+    const started = Date.now();
+    await call(session.base, `/session/${session.sessionId}/wda/activeAppInfo`).catch(() => undefined);
+    await alertText(session).catch(() => null);
+    return Date.now() - started;
 }
