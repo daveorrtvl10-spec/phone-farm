@@ -7,6 +7,7 @@ import { recognizeRegionZoomed, recognizeWords } from './ocr.js';
 import { awaitAssist } from './assist.js';
 import { detectEngagementControls } from './engagement-controls.js';
 import { looksLikeSlideshow, slideViewingPlan } from './feed-post.js';
+import { readSlidePagination, remainingSlides } from './slide-dots.js';
 import { appiumProbe } from './blocker-probe.js';
 import { clearBlockers } from './blockers.js';
 import {
@@ -390,10 +391,26 @@ try {
                 if (looksLikeSlideshow(band)) {
                     const plan = slideViewingPlan(Math.random);
                     slideshows += 1;
+                    let swipedSlides = 0;
                     for (const dwell of plan.dwellMs) {
                         if (stopRequested || !hasTimeRemaining(Date.now(), deadline)) break;
                         await cancellableDelay(clampToDeadline(Date.now(), deadline, dwell));
                         if (stopRequested || !hasTimeRemaining(Date.now(), deadline)) break;
+                        // One swipe past the last slide opens the creator's profile,
+                        // and the run then engages there instead of on the feed — the
+                        // off-feed drift seen on 2026-09-04. The dots say how many
+                        // slides are actually left; when they cannot be read, stay put.
+                        const pagination = await readSlidePagination(
+                            await remoteControl.getScreenshot(udid),
+                        ).catch(() => null);
+                        if (remainingSlides(pagination) <= 0) {
+                            console.log(
+                                pagination
+                                    ? `Last of ${pagination.total} slides; not swiping past it`
+                                    : 'Could not read the slide dots; not swiping sideways',
+                            );
+                            break;
+                        }
                         await driver.performActions([{
                             type: 'pointer', id: 'finger', parameters: { pointerType: 'touch' },
                             actions: [
@@ -405,8 +422,9 @@ try {
                         }]);
                         await driver.releaseActions();
                         slidesViewed += 1;
+                        swipedSlides += 1;
                     }
-                    console.log(`Swiped through ${plan.slides} slides of a photo post`);
+                    console.log(`Swiped through ${swipedSlides} slides of a photo post (planned up to ${plan.slides})`);
                     await ensureFeed('a slideshow');
                 }
             } catch (error) {
