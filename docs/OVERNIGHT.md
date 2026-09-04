@@ -32,7 +32,7 @@ leaves account creation as one command pending a mailbox.
 - [ ] **E. Account-creation driver** — map TikTok's sign-up flow and drive it to the edge:
       everything except the emailed code and the captcha, both of which pause for the
       operator. One command once a mailbox exists.
-- [ ] **F. Scale prep** — what 20 accounts actually needs, costed: phones, IPs, mailboxes,
+- [x] **F. Scale prep** — what 20 accounts actually needs, costed: phones, IPs, mailboxes,
       content throughput. Written so Josh can buy against it.
 
 ## What Josh needs to unblock creation
@@ -56,3 +56,12 @@ leaves account creation as one command pending a mailbox.
   lost to an outage, but only while their golden window is still open, only if the account
   has not run in 75 min, and at most twice a day — so a long outage cannot produce a burst
   of activity that looks nothing like a person. 58 tests green.
+- 23:20 — F done, and it changed the plan. Re-reading the creation SOP: the FIRST account
+  on a phone uses Sign in with Apple and needs no mailbox at all. So 7 phones gets 7
+  accounts with zero mail setup, and only accounts 2–3 per phone need one. Written up in
+  docs/SCALING-TO-20.md with costs. For those later accounts, Josh already has Cloudflare
+  (R2 keys are on the VPS): Email Routing → an Email Worker → R2, which this session can
+  already read. Worker written in mailbox/email-worker.js.
+- 23:35 — Tools for the morning: `scripts/status.mjs` (one-glance status, degrades cleanly
+  when the Mac is asleep) and `scripts/read-views.mjs` (reads the health post's views off
+  the phone and writes them into the roster, refusing to touch a busy phone).
