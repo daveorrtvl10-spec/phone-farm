@@ -29,7 +29,9 @@ leaves account creation as one command pending a mailbox.
       back to the roster. Feeds the 700-view health test and the view-count diagnosis.
 - [x] **D. Outage recovery** — when a device reconnects, rerun sessions missed inside their
       window automatically instead of losing the day.
-- [ ] **E. Account-creation driver** — map TikTok's sign-up flow and drive it to the edge:
+- [ ] **E. Account-creation driver** — BLOCKED all night: needs a free phone to map the
+      sign-up screens, and the Mac never stayed awake long enough.
+- [x] **G. Content drop pipeline** (added tonight; the real bottleneck at 20 accounts) — map TikTok's sign-up flow and drive it to the edge:
       everything except the emailed code and the captcha, both of which pause for the
       operator. One command once a mailbox exists.
 - [x] **F. Scale prep** — what 20 accounts actually needs, costed: phones, IPs, mailboxes,
@@ -42,6 +44,12 @@ leaves account creation as one command pending a mailbox.
 3. Phones. Used iPhone SE 2/3 or XR, ~$80–120 each. 7 phones ≈ 20 accounts at 3/device.
 
 ## Progress log
+- 00:05 — G done. `content/ready/@handle/<slug>/` + `scripts/post-next.mjs`: whoever makes
+  the slides drops a folder, the farm posts the oldest one and moves it to
+  `content/posted/` with a result, recording it in the roster. Every gate is enforced
+  before a phone is touched — warm-up, health test, 2/day cap, golden window, phone free
+  and idle. `src/planning/content.ts` holds the rules; 65 tests green. This is what lets a
+  separate generation session feed the farm without touching curl or knowing about phones.
 - 21:54 phone time — Mac asleep, unreachable. Started VPS-side build.
 - 22:20 — A + B done. `roster.json` holds both accounts; phase is derived, never hand-set
   (`src/planning/roster.ts`). `src/planning/plan.ts` turns the roster into a jittered day
