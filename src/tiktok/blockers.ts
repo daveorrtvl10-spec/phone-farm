@@ -13,14 +13,7 @@
  * delete an account.
  */
 
-import {
-    type UiSession,
-    alertButtons,
-    alertText,
-    acceptAlertButton,
-    clickElement,
-    findElements,
-} from '../devices/ui.js';
+import type { BlockerProbe } from './blocker-probe.js';
 import { type AlertPolicy, chooseButton, isDestructive } from './system-alerts.js';
 
 /** Labels that dismiss an overlay without agreeing to anything. */
@@ -61,38 +54,38 @@ export function findOverlayDismissal(labels: string[]): string | null {
  * whether to keep going, retry, or stop and raise assist.
  */
 export async function clearOneBlocker(
-    session: UiSession,
+    probe: BlockerProbe,
     policy: AlertPolicy = 'defer',
 ): Promise<BlockerOutcome> {
-    const text = await alertText(session);
+    const text = await probe.alertText();
     if (text !== null) {
-        const buttons = await alertButtons(session);
+        const buttons = await probe.alertButtons();
         if (isDestructive(text)) return { kind: 'unhandled', text, buttons };
         const choice = chooseButton(buttons, policy);
         if (!choice) return { kind: 'unhandled', text, buttons };
-        const ok = await acceptAlertButton(session, choice);
+        const ok = await probe.pressAlertButton(choice);
         return ok ? { kind: 'alert', text, pressed: choice, buttons } : { kind: 'unhandled', text, buttons };
     }
 
-    const buttons = await findElements(session, '**/XCUIElementTypeButton', 30);
+    const buttons = await probe.buttons();
     const labels = buttons.map((b) => b.label).filter(Boolean);
     const dismissal = findOverlayDismissal(labels);
     if (!dismissal) return { kind: 'none' };
     const target = buttons.find((b) => b.label.trim() === dismissal);
     if (!target) return { kind: 'none' };
-    const ok = await clickElement(session, target.id);
+    const ok = await target.press();
     return ok ? { kind: 'overlay', pressed: dismissal, buttons: labels } : { kind: 'unhandled', buttons: labels };
 }
 
 /** Clear stacked blockers, stopping at the first thing we will not press. */
 export async function clearBlockers(
-    session: UiSession,
+    probe: BlockerProbe,
     policy: AlertPolicy = 'defer',
     maxRounds = 6,
 ): Promise<BlockerOutcome[]> {
     const history: BlockerOutcome[] = [];
     for (let round = 0; round < maxRounds; round += 1) {
-        const outcome = await clearOneBlocker(session, policy);
+        const outcome = await clearOneBlocker(probe, policy);
         if (outcome.kind === 'none') break;
         history.push(outcome);
         if (outcome.kind === 'unhandled') break;

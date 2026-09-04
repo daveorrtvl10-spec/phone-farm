@@ -7,6 +7,8 @@ import { recognizeRegionZoomed, recognizeWords } from './ocr.js';
 import { awaitAssist } from './assist.js';
 import { detectEngagementControls } from './engagement-controls.js';
 import { looksLikeSlideshow, slideViewingPlan } from './feed-post.js';
+import { appiumProbe } from './blocker-probe.js';
+import { clearBlockers } from './blockers.js';
 import {
     PROFILES,
     clampToDeadline,
@@ -204,6 +206,18 @@ try {
     await driver.activateApp(tiktokBundleId);
     await driver.pause(5000);
 
+    // A dialog in front of the app swallows every gesture underneath it, so the
+    // run scrolls a screen that never moves while the logs look healthy. Clear
+    // what is in the way before measuring or tapping anything.
+    const blockerProbe = appiumProbe(driver);
+    const openingBlockers = await clearBlockers(blockerProbe, 'defer').catch((error: unknown) => {
+        console.log(`Blocker check failed at open: ${error instanceof Error ? error.message : String(error)}`);
+        return [];
+    });
+    for (const blocker of openingBlockers) {
+        console.log(`Blocker at open: ${blocker.kind} ${blocker.text ?? ''} -> ${blocker.pressed ?? 'left alone'}`);
+    }
+
     if (switchAccountName) {
         console.log(`Switching to TikTok account "${switchAccountName}"`);
         await switchTikTokAccount(driver, remoteControl, udid, switchAccountName, accountSwitchCoords);
@@ -255,6 +269,17 @@ try {
             const { ok, seen } = await onFeed();
             if (ok) return;
             console.log(`Not on the feed after ${context} (attempt ${attempt}). OCR: ${seen.slice(0, 120)}`);
+            // Ask the view hierarchy before touching coordinates. A dialog or an
+            // in-feed promo reads as "off the feed" to OCR, and pressing it by
+            // label clears it without guessing where its buttons are.
+            const cleared = await clearBlockers(blockerProbe, 'defer').catch(() => []);
+            for (const blocker of cleared) {
+                console.log(`Blocker during ${context}: ${blocker.kind} ${blocker.text ?? ''} -> ${blocker.pressed ?? 'left alone'}`);
+            }
+            if (cleared.some((blocker) => blocker.kind === 'alert' || blocker.kind === 'overlay')) {
+                await driver!.pause(1200);
+                if ((await onFeed()).ok) return;
+            }
             // First question: is TikTok even in front? Seen live: TikTok crashed to
             // Springboard mid-session and the "Home tab" coordinate opened the
             // Phone app from the dock. Never tap TikTok coordinates blind.
