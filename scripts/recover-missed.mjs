@@ -15,11 +15,18 @@ const tz = roster.tzOffsetHours ?? -5;
 const devices = [...new Set(roster.accounts.map((a) => a.device))];
 const executions = [];
 for (const device of devices) {
-    const res = await fetch(`${API}/api/executions?deviceUdid=${device}`);
-    if (!res.ok) { console.error(`could not read executions for ${device.slice(-6)}: ${res.status}`); continue; }
-    const json = await res.json();
-    executions.push(...(json.executions ?? []));
+    // The watcher calls this the moment a phone reconnects, which is exactly when
+    // the dashboard may still be coming back. Never throw at it.
+    try {
+        const res = await fetch(`${API}/api/executions?deviceUdid=${device}`, { signal: AbortSignal.timeout(8000) });
+        if (!res.ok) { console.error(`could not read executions for ${device.slice(-6)}: ${res.status}`); continue; }
+        const json = await res.json();
+        executions.push(...(json.executions ?? []));
+    } catch (error) {
+        console.error(`dashboard unreachable for ${device.slice(-6)}: ${error instanceof Error ? error.message : error}`);
+    }
 }
+if (executions.length === 0) { console.log('Nothing to recover right now.'); process.exit(0); }
 
 const recover = sessionsToRecover(executions, { now: Date.now(), tzOffsetHours: tz });
 if (recover.length === 0) { console.log('Nothing to recover right now.'); process.exit(0); }
@@ -35,8 +42,13 @@ for (const execution of recover) {
     });
     console.log(`recover ${p.account ?? execution.deviceUdid.slice(-6)} ${p.durationMinutes}m ${p.personality} (missed ${execution.scheduledFor.slice(11, 16)}Z)`);
     if (dryRun) continue;
-    const res = await fetch(`${API}/api/devices/${execution.deviceUdid}/fragments/scroll-run`, {
-        method: 'POST', headers: { origin: API, 'content-type': 'application/x-www-form-urlencoded' }, body: form,
-    });
-    console.log(`  -> ${res.status}`);
+    try {
+        const res = await fetch(`${API}/api/devices/${execution.deviceUdid}/fragments/scroll-run`, {
+            method: 'POST', headers: { origin: API, 'content-type': 'application/x-www-form-urlencoded' }, body: form,
+            signal: AbortSignal.timeout(20000),
+        });
+        console.log(`  -> ${res.status}`);
+    } catch (error) {
+        console.error(`  -> failed: ${error instanceof Error ? error.message : error}`);
+    }
 }
