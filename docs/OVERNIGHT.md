@@ -56,7 +56,31 @@ So the agent is worth keeping — it removes idle sleep permanently — but the 
 outages will only stop when the lid is open, or an external display is attached. That is
 the one thing tonight that needed a person and could not be worked around.
 
+## Where things stand for the morning (read this first)
+**Friday's seven sessions are booked** — landed 02:46 after the fast-fire path caught a
+wake window. They run at 06:17, 07:16, 07:41, 10:19, 11:45, 17:31 and 19:35 phone time.
+They will only actually run if the Mac is awake and the phones are on USB.
+
+**Three things, in order:**
+1. **Open the lid** (or attach an external display). The caffeinate agent is installed and
+   removes idle sleep, but nothing in software overrides sleep-on-lid-close. This is the
+   single cause of every outage since 21:45.
+2. **Plug both phones back into USB.** The watcher then fires `scripts/on-wake.mjs` by
+   itself: it re-runs anything recoverable inside its window and re-books if needed.
+3. **This evening, read the health post.** `node --import tsx scripts/read-views.mjs
+   --handle @lucywalters35` (the nightly job does it automatically at 23:07). Over 700
+   views and your content starts; under 300 and the account is reset.
+
+**One glance at anything:** `node --import tsx scripts/status.mjs` — works even asleep.
+
+**20 accounts:** not possible tonight and the reasons are above, but the path is costed in
+`docs/SCALING-TO-20.md`. The finding worth acting on: the first account on each phone signs
+in with Apple and needs **no mailbox**, so seven phones reaches twenty accounts with no
+mail setup for the first seven.
+
 ## Progress log
+- 02:46 — All seven of Friday's sessions booked. The offline-plan + fast-fire approach
+  worked: the booker caught a window too short for the old path and landed everything.
 - 01:50 — Better idea, from watching the retries lose: the *planner* was the problem, not
   the network. Starting it costs 10–20 s of TypeScript compilation, and the Mac slept
   before it ever reached the HTTP calls. So the plan is now computed **offline** (no Mac
