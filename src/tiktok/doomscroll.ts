@@ -6,6 +6,7 @@ import { switchTikTokAccount, tapCoordinate } from './actions.js';
 import { recognizeRegionZoomed, recognizeWords } from './ocr.js';
 import { awaitAssist } from './assist.js';
 import { detectEngagementControls } from './engagement-controls.js';
+import { looksLikeSlideshow, slideViewingPlan } from './feed-post.js';
 import {
     PROFILES,
     clampToDeadline,
@@ -168,6 +169,8 @@ let likes = 0;
 let saves = 0;
 let follows = 0;
 let searches = 0;
+let slideshows = 0;
+let slidesViewed = 0;
 const runStartedAt = Date.now();
 
 console.log(`Starting doomscroll: profile=${personality} requestedDurationMinutes=${durationMinutes} likeEnabled=${likeEnabled} saveEnabled=${saveEnabled}`);
@@ -342,6 +345,45 @@ try {
         videosViewed += 1;
         if (stopRequested || !hasTimeRemaining(Date.now(), deadline)) break;
 
+        // Photo slideshows want swiping THROUGH, not past. Sitting on slide one and
+        // flicking up is a distinctive non-human pattern (Josh spotted it live on
+        // 2026-09-04), and slideshows are exactly what this farm posts. The caption
+        // row is OCR'd on a fraction of posts to keep the cost down; a horizontal
+        // swipe is only ever sent once "Photo" is actually seen, because on a video
+        // that same gesture opens the creator's profile.
+        if (Math.random() < 0.5) {
+            try {
+                const band = await recognizeRegionZoomed(
+                    await remoteControl.getScreenshot(udid), { left: 0, top: 0.74, width: 1, height: 0.12 },
+                );
+                if (looksLikeSlideshow(band)) {
+                    const plan = slideViewingPlan(Math.random);
+                    slideshows += 1;
+                    for (const dwell of plan.dwellMs) {
+                        if (stopRequested || !hasTimeRemaining(Date.now(), deadline)) break;
+                        await cancellableDelay(clampToDeadline(Date.now(), deadline, dwell));
+                        if (stopRequested || !hasTimeRemaining(Date.now(), deadline)) break;
+                        await driver.performActions([{
+                            type: 'pointer', id: 'finger', parameters: { pointerType: 'touch' },
+                            actions: [
+                                { type: 'pointerMove', duration: 0, x: 330, y: 430 },
+                                { type: 'pointerDown', button: 0 },
+                                { type: 'pointerMove', duration: 260, x: 90, y: 430 },
+                                { type: 'pointerUp', button: 0 },
+                            ],
+                        }]);
+                        await driver.releaseActions();
+                        slidesViewed += 1;
+                    }
+                    console.log(`Swiped through ${plan.slides} slides of a photo post`);
+                    await ensureFeed('a slideshow');
+                }
+            } catch (error) {
+                console.log(`Slideshow check skipped: ${error instanceof Error ? error.message : String(error)}`);
+            }
+        }
+        if (stopRequested || !hasTimeRemaining(Date.now(), deadline)) break;
+
         if (likeEnabled && decideLike(profile)) {
             await cancellableDelay(clampToDeadline(Date.now(), deadline, interactionPauseMs()));
             if (stopRequested || !hasTimeRemaining(Date.now(), deadline)) break;
@@ -421,7 +463,7 @@ try {
 
     const elapsedMs = Date.now() - runStartedAt;
     const reason = stopRequested ? 'stopped' : 'completed';
-    console.log(`Finished doomscroll: videosViewed=${videosViewed} swipes=${swipes} likes=${likes} saves=${saves} follows=${follows} searches=${searches} elapsedMs=${elapsedMs} reason=${reason}`);
+    console.log(`Finished doomscroll: videosViewed=${videosViewed} swipes=${swipes} likes=${likes} saves=${saves} follows=${follows} searches=${searches} slideshows=${slideshows} slides=${slidesViewed} elapsedMs=${elapsedMs} reason=${reason}`);
 } finally {
     if (driver) {
         // A person puts the phone down when they stop scrolling; don't leave
