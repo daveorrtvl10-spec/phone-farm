@@ -217,6 +217,10 @@ try {
     for (const blocker of openingBlockers) {
         console.log(`Blocker at open: ${blocker.kind} ${blocker.text ?? ''} -> ${blocker.pressed ?? 'left alone'}`);
     }
+    // Log what the hierarchy actually exposes, so "no blockers" is
+    // distinguishable from "the probe saw nothing at all" in a later postmortem.
+    const visibleControls = await blockerProbe.buttons().catch(() => []);
+    console.log(`Controls visible at open (${visibleControls.length}): ${visibleControls.map((control) => control.label).join(' | ').slice(0, 200)}`);
 
     if (switchAccountName) {
         console.log(`Switching to TikTok account "${switchAccountName}"`);
