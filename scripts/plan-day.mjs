@@ -7,9 +7,10 @@
  * is safe. Phase (lurker / training / health-test / posting) is derived from the
  * roster, never passed in.
  */
-import { readFile } from 'node:fs/promises';
+import { readFile, writeFile, appendFile } from 'node:fs/promises';
 import { planDay } from '../src/planning/plan.ts';
 import { describePhase } from '../src/planning/roster.ts';
+import { parseDone, remaining, toRequestBodies } from '../src/planning/dispatch.ts';
 
 const args = process.argv.slice(2);
 const flag = (name) => args.includes(`--${name}`);
@@ -19,6 +20,34 @@ const value = (name, fallback) => {
 };
 
 const API = process.env.FARM_API ?? 'http://127.0.0.1:3000';
+
+// --fire sends a previously emitted file. Resumable: every accepted request is
+// recorded next to it, so a Mac that sleeps mid-run costs nothing but time.
+const firePath = value('fire', '');
+if (firePath) {
+    const requests = JSON.parse(await readFile(firePath, 'utf8'));
+    const donePath = `${firePath}.done`;
+    let done = [];
+    try { done = parseDone(await readFile(donePath, 'utf8')); } catch { /* first run */ }
+    const todo = remaining(requests, done);
+    if (todo.length === 0) { console.log(`All ${requests.length} requests already sent.`); process.exit(0); }
+    console.log(`Firing ${todo.length} of ${requests.length} requests…`);
+    let sent = 0;
+    for (const request of todo) {
+        try {
+            const res = await fetch(`${API}/api/devices/${request.device}/fragments/scroll-run`, {
+                method: 'POST', headers: { origin: API, 'content-type': 'application/x-www-form-urlencoded' },
+                body: request.body, signal: AbortSignal.timeout(6000),
+            });
+            if (res.status === 202) { await appendFile(donePath, `${request.index}\n`); sent += 1; console.log(`  sent ${request.index}`); }
+            else console.error(`  ${request.index}: HTTP ${res.status}`);
+        } catch (error) {
+            console.error(`  ${request.index}: ${error instanceof Error ? error.message : error}`);
+        }
+    }
+    console.log(`Sent ${sent}; ${todo.length - sent} still outstanding.`);
+    process.exit(todo.length - sent === 0 ? 0 : 1);
+}
 const roster = JSON.parse(await readFile(new URL('../roster.json', import.meta.url), 'utf8'));
 const tz = roster.tzOffsetHours ?? -5;
 const localNow = new Date(Date.now() + tz * 3_600_000);
@@ -39,6 +68,17 @@ for (const s of sessions) {
     console.log(`  ${local(s.runAt)}  ${s.deviceName ?? s.device.slice(-6)}  ${s.handle.padEnd(16)} ${s.phase.padEnd(11)} ${s.personality.padEnd(7)} ${String(s.durationMinutes).padStart(2)}m  searches=${s.searchCount} follows=${s.followBudget}`);
 }
 if (flag('dry-run')) process.exit(0);
+
+// --emit writes ready-to-send request bodies and stops. Computing the plan needs no
+// Mac, and doing it ahead of time keeps the 10-20 s of TypeScript startup off the
+// critical path — see src/planning/dispatch.ts for why that matters.
+const emitPath = value('emit', '');
+if (emitPath) {
+    await writeFile(emitPath, `${JSON.stringify(toRequestBodies(sessions), null, 2)}\n`);
+    console.log(`\nWrote ${sessions.length} request bodies to ${emitPath}`);
+    console.log(`Fire them with: node --import tsx scripts/plan-day.mjs --fire ${emitPath}`);
+    process.exit(0);
+}
 
 const post = (path, body) => fetch(`${API}${path}`, {
     method: 'POST', headers: { origin: API, 'content-type': 'application/json' }, body: JSON.stringify(body),

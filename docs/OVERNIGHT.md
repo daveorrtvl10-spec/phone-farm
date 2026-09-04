@@ -62,8 +62,12 @@ the one thing tonight that needed a person and could not be worked around.
   before it ever reached the HTTP calls. So the plan is now computed **offline** (no Mac
   needed) into `inbox/plan-2026-09-04.json`, flattened to seven pre-built request bodies,
   and fired by plain `curl` — each call lands in milliseconds and is recorded, so the work
-  resumes rather than restarting. A wake window of a few seconds is now enough. Worth
-  folding into `scripts/plan-day.mjs` as a `--emit` / `--fire` pair once the Mac is stable.
+  resumes rather than restarting. A wake window of a few seconds is now enough.
+- 02:10 — Folded that into the repo properly: `src/planning/dispatch.ts` turns a plan into
+  ready-to-send request bodies, and `scripts/plan-day.mjs` gained `--emit <file>` (works
+  offline, no Mac) and `--fire <file>` (resumable — every accepted request is recorded next
+  to the file, so a Mac that sleeps mid-run costs only time). 69 tests green. The ad-hoc
+  overnight shell scripts are now a supported path rather than something living in inbox/.
 - 00:50 — The wake windows are shorter than a booking pass. Seven sessions means seven
   API calls, and the Mac has been sleeping mid-loop. Two fixes: the planner now catches
   each booking separately and reports exactly which ones did not land (so a partial
