@@ -1,0 +1,37 @@
+{
+  "tzOffsetHours": -5,
+  "accounts": [
+    {
+      "handle": "@lucywalters35",
+      "device": "00008020-001648EA0C42002E",
+      "deviceName": "Xs Max",
+      "niche": "beauty / beautician",
+      "owner": "josh",
+      "createdAt": "2026-09-02T09:30:00Z",
+      "warmupHours": 36,
+      "lurkerHours": 24,
+      "seedTerms": ["skincare routine", "esthetician", "facial treatment", "lash tech", "brow lamination", "beautician day in the life", "salon vlog", "skin prep"],
+      "posts": [
+        {
+          "postedAt": "2026-09-03T23:51:00Z",
+          "kind": "health-test",
+          "views24h": null,
+          "views48h": null,
+          "note": "Copied hook+caption of a 161.8K-like skincare post; image regenerated. Posted by hand."
+        }
+      ]
+    },
+    {
+      "handle": "@leor.towe2",
+      "device": "00008020-001124110E78002E",
+      "deviceName": "XR",
+      "niche": "relatable psychology / human behaviour",
+      "owner": "claude",
+      "createdAt": "2026-09-02T13:01:54Z",
+      "warmupHours": 48,
+      "lurkerHours": 24,
+      "seedTerms": ["psychology facts", "signs you", "things nobody tells you", "human behaviour", "overthinking", "why do people", "social cues", "personality traits"],
+      "posts": []
+    }
+  ]
+}

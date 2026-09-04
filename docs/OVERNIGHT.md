@@ -20,9 +20,9 @@ leaves account creation as one command pending a mailbox.
 
 ## Queue (work top-down; tick as done)
 - [x] caffeinate launch agent so the Mac stops sleeping mid-schedule (queued to install on wake)
-- [ ] **A. Account roster** — one file describing every account: device, handle, niche,
+- [x] **A. Account roster** — one file describing every account: device, handle, niche,
       created, warm-up hours, phase, posts + view reads. Phase derived, not hand-set.
-- [ ] **B. Phase-aware day planner** — from the roster, book a full day per account:
+- [x] **B. Phase-aware day planner** — from the roster, book a full day per account:
       jittered sessions inside the golden windows, personality/searches/follows by phase,
       never double-booking a device. Replaces booking by hand.
 - [ ] **C. Results reader** — screenshot the profile grid, OCR the view counts, write them
@@ -43,3 +43,8 @@ leaves account creation as one command pending a mailbox.
 
 ## Progress log
 - 21:54 phone time — Mac asleep, unreachable. Started VPS-side build.
+- 22:20 — A + B done. `roster.json` holds both accounts; phase is derived, never hand-set
+  (`src/planning/roster.ts`). `src/planning/plan.ts` turns the roster into a jittered day
+  inside the golden windows, with per-device collision avoidance, and
+  `scripts/plan-day.mjs` books it (`--dry-run` / `--replace`). 50 tests green.
+  Booking needs the Mac awake, so tomorrow's day gets booked on wake.
