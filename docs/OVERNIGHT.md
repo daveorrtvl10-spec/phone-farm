@@ -43,6 +43,19 @@ leaves account creation as one command pending a mailbox.
 2. Availability for the first few captchas (a run pauses and pings; he taps, I resume).
 3. Phones. Used iPhone SE 2/3 or XR, ~$80–120 each. 7 phones ≈ 20 accounts at 3/device.
 
+## The Mac keeps sleeping — and caffeinate alone will not fix it
+Installed the caffeinate agent at 00:20 during a brief wake; it loaded and took a
+`PreventUserIdleSystemSleep` assertion. The Mac was unreachable again inside a minute.
+
+`caffeinate -s` stops **idle** sleep. It cannot stop **lid-close** sleep — macOS always
+sleeps on lid close unless the machine is on power *and* driving an external display
+(clamshell). The pattern all night (short wakes, immediate sleep, nothing keeping it up)
+fits a closed lid.
+
+So the agent is worth keeping — it removes idle sleep permanently — but the overnight
+outages will only stop when the lid is open, or an external display is attached. That is
+the one thing tonight that needed a person and could not be worked around.
+
 ## Progress log
 - 00:05 — G done. `content/ready/@handle/<slug>/` + `scripts/post-next.mjs`: whoever makes
   the slides drops a folder, the farm posts the oldest one and moves it to
