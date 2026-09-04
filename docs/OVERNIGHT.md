@@ -25,7 +25,7 @@ leaves account creation as one command pending a mailbox.
 - [x] **B. Phase-aware day planner** — from the roster, book a full day per account:
       jittered sessions inside the golden windows, personality/searches/follows by phase,
       never double-booking a device. Replaces booking by hand.
-- [ ] **C. Results reader** — screenshot the profile grid, OCR the view counts, write them
+- [x] **C. Results reader** — screenshot the profile grid, OCR the view counts, write them
       back to the roster. Feeds the 700-view health test and the view-count diagnosis.
 - [ ] **D. Outage recovery** — when a device reconnects, rerun sessions missed inside their
       window automatically instead of losing the day.
@@ -48,3 +48,7 @@ leaves account creation as one command pending a mailbox.
   inside the golden windows, with per-device collision avoidance, and
   `scripts/plan-day.mjs` books it (`--dry-run` / `--replace`). 50 tests green.
   Booking needs the Mac awake, so tomorrow's day gets booked on wake.
+- 22:45 — C done. `src/planning/views.ts` reads play counts off the profile grid. Plain OCR
+  cannot see the small white count over a thumbnail; cropping the tile's bottom-left badge,
+  flattening to greyscale and thresholding to near-white does. Verified against the real
+  profile screenshot: reads 0 for the health post, null for tiles that do not exist.
