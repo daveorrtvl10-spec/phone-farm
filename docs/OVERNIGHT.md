@@ -79,6 +79,12 @@ in with Apple and needs **no mailbox**, so seven phones reaches twenty accounts 
 mail setup for the first seven.
 
 ## Progress log
+- 03:55 — Reviewed the one path that runs unattended tonight and found a real bug.
+  `read-views.mjs` took the newest grid tile and wrote it into the health post's record.
+  That is right only while the account has exactly one post; after a second post it would
+  silently record the wrong number — and that number decides whether the account is used
+  or reset. It now refuses to guess: one post resolves to tile 0, more than one requires
+  `--tile <index>`, because TikTok reorders the grid when a post is pinned. 73 tests green.
 - 02:46 — All seven of Friday's sessions booked. The offline-plan + fast-fire approach
   worked: the booker caught a window too short for the old path and landed everything.
 - 01:50 — Better idea, from watching the retries lose: the *planner* was the problem, not

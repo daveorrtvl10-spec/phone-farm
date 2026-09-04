@@ -1,6 +1,7 @@
 import sharp from 'sharp';
 
 import { recognizeWords } from '../tiktok/ocr.js';
+import type { PostRecord } from './roster.js';
 
 /**
  * Reads the play counts off a TikTok profile grid screenshot.
@@ -75,4 +76,35 @@ export async function readGridViews(
         results.push(await readBadge(screenshot, { left, top, width: geometry.badgeWidthPx, height: geometry.badgeHeightPx }));
     }
     return results;
+}
+
+export interface TileResolution {
+    ok: boolean;
+    index: number;
+    reason: string;
+}
+
+/**
+ * Which grid tile holds the health-test post.
+ *
+ * The grid is newest-first, so with a single post the answer is tile 0. Past that
+ * it is a guess: TikTok reorders the grid when a post is pinned, so chronological
+ * position stops matching grid position. Since this number decides whether an
+ * account is used or reset, guessing is not acceptable — ask for the tile instead.
+ */
+export function resolveHealthTile(posts: PostRecord[], explicitTile?: number): TileResolution {
+    if (explicitTile !== undefined) {
+        if (!Number.isInteger(explicitTile) || explicitTile < 0) {
+            return { ok: false, index: -1, reason: `--tile must be a non-negative integer, got ${explicitTile}` };
+        }
+        return { ok: true, index: explicitTile, reason: 'tile given explicitly' };
+    }
+    const health = posts.filter((post) => post.kind === 'health-test');
+    if (health.length === 0) return { ok: false, index: -1, reason: 'no health-test post recorded' };
+    if (posts.length === 1) return { ok: true, index: 0, reason: 'only one post, so it is the newest tile' };
+    return {
+        ok: false,
+        index: -1,
+        reason: `${posts.length} posts on the profile — grid order is not reliable once TikTok can pin or reorder, so pass --tile <index> (0 is newest)`,
+    };
 }

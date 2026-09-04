@@ -6,7 +6,7 @@
  * Refuses to run while an automation is active on that phone.
  */
 import { readFile, writeFile } from 'node:fs/promises';
-import { readGridViews } from '../src/planning/views.ts';
+import { readGridViews, resolveHealthTile } from '../src/planning/views.ts';
 
 const API = process.env.FARM_API ?? 'http://127.0.0.1:3000';
 const args = process.argv.slice(2);
@@ -44,14 +44,21 @@ const views = await readGridViews(await shot(), 3);
 console.log('grid play counts (newest first):', views);
 await act({ type: 'home' }); await wait(800); await act({ type: 'lock' });
 
-const newest = views[0];
-if (newest === null || newest === undefined) {
-    console.error('Could not read the newest tile. Leaving the roster unchanged.');
+const tileArg = value('tile', undefined);
+const tile = resolveHealthTile(account.posts ?? [], tileArg === undefined ? undefined : Number(tileArg));
+if (!tile.ok) {
+    console.error(`Cannot tell which tile is the health post: ${tile.reason}`);
+    console.error('Leaving the roster unchanged.');
     process.exit(1);
 }
-console.log(`${handle} health post: ${newest} views`);
+const reading = views[tile.index];
+if (reading === null || reading === undefined) {
+    console.error(`Could not read tile ${tile.index} (${tile.reason}). Leaving the roster unchanged.`);
+    process.exit(1);
+}
+console.log(`${handle} health post: ${reading} views (tile ${tile.index} — ${tile.reason})`);
 if (flag('dry-run')) process.exit(0);
 
-post[field] = newest;
+post[field] = reading;
 await writeFile(rosterPath, `${JSON.stringify(roster, null, 2)}\n`);
-console.log(`roster.json updated (${field} = ${newest})`);
+console.log(`roster.json updated (${field} = ${reading})`);
